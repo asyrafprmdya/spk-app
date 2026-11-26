@@ -1,0 +1,440 @@
+{
+  "classification": {
+    "labels": [
+      "Budget",
+      "Mid-range",
+      "Flagship"
+    ],
+    "accuracy": 0.7969924812030075,
+    "perClass": {
+      "Budget": {
+        "precision": 0.6785714285714286,
+        "recall": 0.8636363636363636,
+        "f1": 0.76,
+        "support": 22
+      },
+      "Mid-range": {
+        "precision": 0.8269230769230769,
+        "recall": 0.7049180327868853,
+        "f1": 0.7610619469026548,
+        "support": 61
+      },
+      "Flagship": {
+        "precision": 0.8301886792452831,
+        "recall": 0.88,
+        "f1": 0.8543689320388349,
+        "support": 50
+      }
+    },
+    "macro": {
+      "precision": 0.7785610615799294,
+      "recall": 0.8161847988077496,
+      "f1": 0.7918102929804967
+    },
+    "confusionMatrix": [
+      [
+        19,
+        3,
+        0
+      ],
+      [
+        9,
+        43,
+        9
+      ],
+      [
+        0,
+        6,
+        44
+      ]
+    ],
+    "cvBestMacroF1": 0.796980234917904,
+    "cvByC": {
+      "0.01": 0.7579007335065467,
+      "0.1": 0.7666922805096262,
+      "1.0": 0.796980234917904,
+      "10.0": 0.7947496319114299,
+      "100.0": 0.79427546368564
+    },
+    "classCounts": {
+      "Budget": 111,
+      "Mid-range": 305,
+      "Flagship": 247
+    },
+    "coefficients": {
+      "Budget": {
+        "ram": -1.0551569061721842,
+        "storage": 0.8233682374074647,
+        "battery": 0.8607185197190533,
+        "charge": -0.14330393734303168,
+        "camera": -0.08140178450593034,
+        "frontCamera": -0.5687133128493368,
+        "displaySize": 0.16172061806211616,
+        "ppi": -0.43731371797872565,
+        "refreshRate": -0.04837604068961961,
+        "cpu": -2.2118709335094735,
+        "gpu": -1.977154957480984
+      },
+      "Flagship": {
+        "ram": 1.1402605168709081,
+        "storage": -0.5708566937508479,
+        "battery": -1.2811830770276027,
+        "charge": -0.10225004381558314,
+        "camera": -0.028450624060625578,
+        "frontCamera": 0.06507494524383066,
+        "displaySize": 0.17663399491673842,
+        "ppi": 0.697661980177144,
+        "refreshRate": 0.15416034152939084,
+        "cpu": 1.0541521500075814,
+        "gpu": 2.3491874360284806
+      },
+      "Mid-range": {
+        "ram": -0.08510361069872444,
+        "storage": -0.2525115436566145,
+        "battery": 0.4204645573085508,
+        "charge": 0.245553981158615,
+        "camera": 0.10985240856655562,
+        "frontCamera": 0.5036383676055036,
+        "displaySize": -0.33835461297885,
+        "ppi": -0.26034826219841833,
+        "refreshRate": -0.10578430083977014,
+        "cpu": 1.1577187835018923,
+        "gpu": -0.3720324785474997
+      }
+    }
+  },
+  "segmentVsSingle": {
+    "kendallVariant": "tau-b",
+    "perSegment": {
+      "Budget": {
+        "n": 105,
+        "spearman": 0.0782189508604603,
+        "kendallTauB": 0.0641025641025641,
+        "top10Overlap": 0.2,
+        "top1Segment": 48,
+        "top1Single": 388
+      },
+      "Mid-range": {
+        "n": 297,
+        "spearman": 0.9410241541114025,
+        "kendallTauB": 0.7972972972972974,
+        "top10Overlap": 0.8,
+        "top1Segment": 552,
+        "top1Single": 130
+      },
+      "Flagship": {
+        "n": 243,
+        "spearman": 0.9071489861355732,
+        "kendallTauB": 0.7376458184538992,
+        "top10Overlap": 0.8,
+        "top1Segment": 40,
+        "top1Single": 240
+      }
+    }
+  },
+  "sensitivity": {
+    "variation": 0.1,
+    "perSegment": {
+      "Budget": [
+        {
+          "criterion": "C1",
+          "factor": 0.9,
+          "spearman": 0.9991395397055775,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C1",
+          "factor": 1.1,
+          "spearman": 0.9992743105950652,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 0.9,
+          "spearman": 0.999232842629069,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 1.1,
+          "spearman": 0.9993987144930541,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 0.9,
+          "spearman": 0.9998237611445159,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 1.1,
+          "spearman": 0.9997408252125234,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 0.9,
+          "spearman": 0.9998133941530167,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 1.1,
+          "spearman": 0.999854862119013,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 0.9,
+          "spearman": 0.9998237611445159,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 1.1,
+          "spearman": 0.9997822931785196,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 0.9,
+          "spearman": 0.999543852374041,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 1.1,
+          "spearman": 0.999388347501555,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 0.9,
+          "spearman": 0.995511092680904,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 1.1,
+          "spearman": 0.9972423802612481,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        }
+      ],
+      "Mid-range": [
+        {
+          "criterion": "C1",
+          "factor": 0.9,
+          "spearman": 0.9998937314373557,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C1",
+          "factor": 1.1,
+          "spearman": 0.9998918992207584,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 0.9,
+          "spearman": 0.9998332682896443,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 1.1,
+          "spearman": 0.9998630418093506,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 0.9,
+          "spearman": 0.9999931291877603,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 1.1,
+          "spearman": 0.9999945033502081,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 0.9,
+          "spearman": 0.9994746118907193,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 1.1,
+          "spearman": 0.9992895580143905,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 0.9,
+          "spearman": 0.9995066756811725,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 1.1,
+          "spearman": 0.9996482144133152,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 0.9,
+          "spearman": 0.9986840104289769,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 1.1,
+          "spearman": 0.9991819152892979,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 0.9,
+          "spearman": 0.9999546526392165,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 1.1,
+          "spearman": 0.9999377046356914,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        }
+      ],
+      "Flagship": [
+        {
+          "criterion": "C1",
+          "factor": 0.9,
+          "spearman": 0.9999540026862429,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C1",
+          "factor": 1.1,
+          "spearman": 0.9999339311311493,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 0.9,
+          "spearman": 0.9999565116306299,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C2",
+          "factor": 1.1,
+          "spearman": 0.9999305858719667,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 0.9,
+          "spearman": 0.9999983273704087,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C3",
+          "factor": 1.1,
+          "spearman": 0.9999983273704087,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 0.9,
+          "spearman": 0.9992623703502987,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C4",
+          "factor": 1.1,
+          "spearman": 0.9989546065055256,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 0.9,
+          "spearman": 0.9996897272108399,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C5",
+          "factor": 1.1,
+          "spearman": 0.9996077683608731,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 0.9,
+          "spearman": 0.998476234442454,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C6",
+          "factor": 1.1,
+          "spearman": 0.9992305903880667,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 0.9,
+          "spearman": 0.9999899642224529,
+          "top10Overlap": 1.0,
+          "top1Same": true
+        },
+        {
+          "criterion": "C7",
+          "factor": 1.1,
+          "spearman": 0.9999782558153149,
+          "top10Overlap": 0.9,
+          "top1Same": true
+        }
+      ]
+    }
+  }
+}

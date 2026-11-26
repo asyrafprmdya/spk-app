@@ -1,0 +1,966 @@
+{
+ "predict": [
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 5000.0,
+    "charge": 90.0,
+    "camera": 50.0,
+    "frontCamera": 20.0,
+    "displaySize": 6.67,
+    "ppi": 446.0,
+    "refreshRate": 120.0,
+    "cpu": 381423.0,
+    "gpu": 509135.0
+   },
+   "probabilities": {
+    "Budget": 1.0885206446052577e-06,
+    "Flagship": 0.9215056821223294,
+    "Mid-range": 0.07849322935702602
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 5000.0,
+    "charge": 30.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.5,
+    "ppi": 405.0,
+    "refreshRate": 120.0,
+    "cpu": 153891.0,
+    "gpu": 79830.0
+   },
+   "probabilities": {
+    "Budget": 0.294021572487573,
+    "Flagship": 0.05412736523025412,
+    "Mid-range": 0.6518510622821728
+   }
+  },
+  {
+   "input": {
+    "ram": 12.0,
+    "storage": 256.0,
+    "battery": 5240.0,
+    "charge": 150.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.74,
+    "ppi": 451.0,
+    "refreshRate": 144.0,
+    "cpu": 390197.0,
+    "gpu": 590392.0
+   },
+   "probabilities": {
+    "Budget": 2.1160995331896756e-08,
+    "Flagship": 0.9872735157666445,
+    "Mid-range": 0.01272646307236018
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 4500.0,
+    "charge": 67.0,
+    "camera": 50.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.28,
+    "ppi": 419.0,
+    "refreshRate": 120.0,
+    "cpu": 318629.0,
+    "gpu": 435995.0
+   },
+   "probabilities": {
+    "Budget": 5.190828484649781e-07,
+    "Flagship": 0.9007434749736198,
+    "Mid-range": 0.09925600594353179
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 67.0,
+    "camera": 64.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.7,
+    "ppi": 394.0,
+    "refreshRate": 120.0,
+    "cpu": 168572.0,
+    "gpu": 136608.0
+   },
+   "probabilities": {
+    "Budget": 0.00831311099346963,
+    "Flagship": 0.10004527462862631,
+    "Mid-range": 0.891641614377904
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 5000.0,
+    "charge": 30.0,
+    "camera": 50.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.6,
+    "ppi": 399.0,
+    "refreshRate": 144.0,
+    "cpu": 170643.0,
+    "gpu": 143286.0
+   },
+   "probabilities": {
+    "Budget": 0.04690138100692304,
+    "Flagship": 0.11275320228835155,
+    "Mid-range": 0.8403454167047253
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 67.0,
+    "camera": 108.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.67,
+    "ppi": 395.0,
+    "refreshRate": 120.0,
+    "cpu": 147952.0,
+    "gpu": 80281.0
+   },
+   "probabilities": {
+    "Budget": 0.11903403926351788,
+    "Flagship": 0.030639954280104402,
+    "Mid-range": 0.8503260064563777
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 3750.0,
+    "charge": 22.5,
+    "camera": 48.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.26,
+    "ppi": 412.0,
+    "refreshRate": 60.0,
+    "cpu": 194697.0,
+    "gpu": 159947.0
+   },
+   "probabilities": {
+    "Budget": 0.0010038568892166894,
+    "Flagship": 0.5194194196181867,
+    "Mid-range": 0.47957672349259656
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 5100.0,
+    "charge": 67.0,
+    "camera": 64.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.67,
+    "ppi": 446.0,
+    "refreshRate": 120.0,
+    "cpu": 205213.0,
+    "gpu": 115839.0
+   },
+   "probabilities": {
+    "Budget": 0.0519426294530856,
+    "Flagship": 0.11737297963540785,
+    "Mid-range": 0.8306843909115065
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 128.0,
+    "battery": 5010.0,
+    "charge": 18.0,
+    "camera": 50.0,
+    "frontCamera": 8.0,
+    "displaySize": 6.6,
+    "ppi": 267.0,
+    "refreshRate": 90.0,
+    "cpu": 131259.0,
+    "gpu": 63965.0
+   },
+   "probabilities": {
+    "Budget": 0.7420070226997035,
+    "Flagship": 0.0010974612973435611,
+    "Mid-range": 0.25689551600295285
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 4000.0,
+    "charge": 27.0,
+    "camera": 48.0,
+    "frontCamera": 20.0,
+    "displaySize": 6.39,
+    "ppi": 403.0,
+    "refreshRate": 60.0,
+    "cpu": 193310.0,
+    "gpu": 165228.0
+   },
+   "probabilities": {
+    "Budget": 0.0044907626517012205,
+    "Flagship": 0.48699643859291436,
+    "Mid-range": 0.5085127987553845
+   }
+  },
+  {
+   "input": {
+    "ram": 12.0,
+    "storage": 256.0,
+    "battery": 5500.0,
+    "charge": 100.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.74,
+    "ppi": 451.0,
+    "refreshRate": 120.0,
+    "cpu": 381368.0,
+    "gpu": 486801.0
+   },
+   "probabilities": {
+    "Budget": 5.532619109572328e-07,
+    "Flagship": 0.9378358417972239,
+    "Mid-range": 0.062163604940865154
+   }
+  },
+  {
+   "input": {
+    "ram": 12.0,
+    "storage": 256.0,
+    "battery": 5000.0,
+    "charge": 165.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.8,
+    "ppi": 400.0,
+    "refreshRate": 120.0,
+    "cpu": 319854.0,
+    "gpu": 637431.0
+   },
+   "probabilities": {
+    "Budget": 7.375195999190447e-08,
+    "Flagship": 0.9906096057743727,
+    "Mid-range": 0.009390320473667179
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 512.0,
+    "battery": 5000.0,
+    "charge": 45.0,
+    "camera": 50.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.67,
+    "ppi": 395.0,
+    "refreshRate": 120.0,
+    "cpu": 210964.0,
+    "gpu": 225450.0
+   },
+   "probabilities": {
+    "Budget": 0.14738278871569352,
+    "Flagship": 0.07858724112980602,
+    "Mid-range": 0.7740299701545004
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 4000.0,
+    "charge": 25.0,
+    "camera": 50.0,
+    "frontCamera": 12.0,
+    "displaySize": 6.2,
+    "ppi": 416.0,
+    "refreshRate": 120.0,
+    "cpu": 436877.0,
+    "gpu": 675490.0
+   },
+   "probabilities": {
+    "Budget": 1.3372488552825778e-10,
+    "Flagship": 0.9992872019089656,
+    "Mid-range": 0.000712797957309606
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 4500.0,
+    "charge": 25.0,
+    "camera": 32.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.7,
+    "ppi": 393.0,
+    "refreshRate": 60.0,
+    "cpu": 109784.0,
+    "gpu": 39385.0
+   },
+   "probabilities": {
+    "Budget": 0.18147349124331666,
+    "Flagship": 0.05025531810333606,
+    "Mid-range": 0.7682711906533474
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 4500.0,
+    "charge": 67.0,
+    "camera": 50.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.55,
+    "ppi": 402.0,
+    "refreshRate": 120.0,
+    "cpu": 241677.0,
+    "gpu": 167935.0
+   },
+   "probabilities": {
+    "Budget": 0.00033812214131054145,
+    "Flagship": 0.3517044698656726,
+    "Mid-range": 0.6479574079930168
+   }
+  },
+  {
+   "input": {
+    "ram": 12.0,
+    "storage": 256.0,
+    "battery": 5000.0,
+    "charge": 80.0,
+    "camera": 64.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.74,
+    "ppi": 451.0,
+    "refreshRate": 120.0,
+    "cpu": 347567.0,
+    "gpu": 300204.0
+   },
+   "probabilities": {
+    "Budget": 7.785429068412543e-06,
+    "Flagship": 0.8876150354965217,
+    "Mid-range": 0.11237717907440972
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 4600.0,
+    "charge": 120.0,
+    "camera": 50.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.73,
+    "ppi": 521.0,
+    "refreshRate": 120.0,
+    "cpu": 322096.0,
+    "gpu": 447813.0
+   },
+   "probabilities": {
+    "Budget": 1.0153661261207812e-07,
+    "Flagship": 0.9768808556132481,
+    "Mid-range": 0.02311904285013934
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 45.0,
+    "camera": 108.0,
+    "frontCamera": 8.0,
+    "displaySize": 6.72,
+    "ppi": 392.0,
+    "refreshRate": 120.0,
+    "cpu": 138397.0,
+    "gpu": 62224.0
+   },
+   "probabilities": {
+    "Budget": 0.36264888182395033,
+    "Flagship": 0.03127974321105041,
+    "Mid-range": 0.6060713749649993
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 128.0,
+    "battery": 7000.0,
+    "charge": 18.0,
+    "camera": 16.0,
+    "frontCamera": 8.0,
+    "displaySize": 6.82,
+    "ppi": 263.0,
+    "refreshRate": 90.0,
+    "cpu": 88042.0,
+    "gpu": 41301.0
+   },
+   "probabilities": {
+    "Budget": 0.989014368953295,
+    "Flagship": 2.616865366496447e-07,
+    "Mid-range": 0.010985369360168315
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 120.0,
+    "camera": 64.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.78,
+    "ppi": 388.0,
+    "refreshRate": 120.0,
+    "cpu": 286981.0,
+    "gpu": 238516.0
+   },
+   "probabilities": {
+    "Budget": 0.0002864119998803442,
+    "Flagship": 0.269402944565365,
+    "Mid-range": 0.7303106434347547
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 80.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.7,
+    "ppi": 394.0,
+    "refreshRate": 120.0,
+    "cpu": 238939.0,
+    "gpu": 202349.0
+   },
+   "probabilities": {
+    "Budget": 0.002157280751308909,
+    "Flagship": 0.2742426727881039,
+    "Mid-range": 0.7236000464605872
+   }
+  },
+  {
+   "input": {
+    "ram": 6.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 33.0,
+    "camera": 64.0,
+    "frontCamera": 8.0,
+    "displaySize": 6.72,
+    "ppi": 392.0,
+    "refreshRate": 90.0,
+    "cpu": 88376.0,
+    "gpu": 41729.0
+   },
+   "probabilities": {
+    "Budget": 0.800290441495341,
+    "Flagship": 0.008482679652275251,
+    "Mid-range": 0.19122687885238387
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 64.0,
+    "battery": 5000.0,
+    "charge": 15.0,
+    "camera": 48.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.7,
+    "ppi": 393.0,
+    "refreshRate": 60.0,
+    "cpu": 146897.0,
+    "gpu": 77755.0
+   },
+   "probabilities": {
+    "Budget": 0.24204849058598055,
+    "Flagship": 0.018683987392159547,
+    "Mid-range": 0.7392675220218599
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": 18.0,
+    "camera": 64.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.8,
+    "ppi": 395.0,
+    "refreshRate": 60.0,
+    "cpu": 79884.0,
+    "gpu": 33230.0
+   },
+   "probabilities": {
+    "Budget": 0.8713917025095418,
+    "Flagship": 0.0017889956614851623,
+    "Mid-range": 0.126819301828973
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 4600.0,
+    "charge": 100.0,
+    "camera": 50.0,
+    "frontCamera": 12.0,
+    "displaySize": 6.81,
+    "ppi": 460.0,
+    "refreshRate": 120.0,
+    "cpu": 259919.0,
+    "gpu": 367772.0
+   },
+   "probabilities": {
+    "Budget": 0.00013805558709967247,
+    "Flagship": 0.9335257749391315,
+    "Mid-range": 0.06633616947376886
+   }
+  },
+  {
+   "input": {
+    "ram": 3.0,
+    "storage": 32.0,
+    "battery": 5000.0,
+    "charge": 10.0,
+    "camera": 16.0,
+    "frontCamera": 5.0,
+    "displaySize": 6.5,
+    "ppi": 269.0,
+    "refreshRate": 90.0,
+    "cpu": 57356.0,
+    "gpu": 11840.0
+   },
+   "probabilities": {
+    "Budget": 0.9578080378703392,
+    "Flagship": 0.00012041691913452144,
+    "Mid-range": 0.04207154521052618
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 64.0,
+    "battery": 5000.0,
+    "charge": 18.0,
+    "camera": 50.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.6,
+    "ppi": 401.0,
+    "refreshRate": 120.0,
+    "cpu": 128815.0,
+    "gpu": 61432.0
+   },
+   "probabilities": {
+    "Budget": 0.34668767409682105,
+    "Flagship": 0.021033298017995333,
+    "Mid-range": 0.6322790278851835
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 6000.0,
+    "charge": 25.0,
+    "camera": 108.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.7,
+    "ppi": 393.0,
+    "refreshRate": 120.0,
+    "cpu": 181304.0,
+    "gpu": 132908.0
+   },
+   "probabilities": {
+    "Budget": 0.01604726017969096,
+    "Flagship": 0.008204701407290063,
+    "Mid-range": 0.975748038413019
+   }
+  },
+  {
+   "input": {
+    "ram": 2.0,
+    "storage": 16.0,
+    "battery": 2800.0,
+    "charge": 5.0,
+    "camera": 5.0,
+    "frontCamera": 2.0,
+    "displaySize": 5.1,
+    "ppi": 203.0,
+    "refreshRate": 60.0,
+    "cpu": 33298.0,
+    "gpu": 6591.0
+   },
+   "probabilities": {
+    "Budget": 0.6029335637450395,
+    "Flagship": 0.009197831644959529,
+    "Mid-range": 0.387868604610001
+   }
+  },
+  {
+   "input": {
+    "ram": 16.0,
+    "storage": 512.0,
+    "battery": 7000.0,
+    "charge": 240.0,
+    "camera": 200.0,
+    "frontCamera": 60.0,
+    "displaySize": 8.03,
+    "ppi": 643.0,
+    "refreshRate": 165.0,
+    "cpu": 538809.0,
+    "gpu": 979908.0
+   },
+   "probabilities": {
+    "Budget": 6.869300656687922e-13,
+    "Flagship": 0.9987530644178643,
+    "Mid-range": 0.0012469355814486145
+   }
+  },
+  {
+   "input": {
+    "ram": null,
+    "storage": null,
+    "battery": null,
+    "charge": null,
+    "camera": null,
+    "frontCamera": null,
+    "displaySize": null,
+    "ppi": null,
+    "refreshRate": null,
+    "cpu": null,
+    "gpu": null
+   },
+   "probabilities": {
+    "Budget": 0.040785793591162786,
+    "Flagship": 0.19765549808077296,
+    "Mid-range": 0.7615587083280643
+   }
+  }
+ ],
+ "recommend": [
+  {
+   "input": {
+    "ram": 3.0,
+    "storage": 32.0,
+    "battery": 5000.0,
+    "charge": 15.0,
+    "camera": 13.0,
+    "frontCamera": 5.0,
+    "displaySize": 6.5,
+    "ppi": 270.0,
+    "refreshRate": 60.0,
+    "cpu": 45078.0,
+    "gpu": 14913.0,
+    "price": 157.0
+   },
+   "expected": {
+    "segment": "Budget",
+    "probabilities": {
+     "Budget": 0.9662461811189929,
+     "Flagship": 7.446488324902928e-05,
+     "Mid-range": 0.03367935399775818
+    },
+    "margin": 0.9325668271212346,
+    "ambiguous": false,
+    "alternativeCount": 106,
+    "inputRank": 74,
+    "inputCloseness": 0.5064286004437744,
+    "top5": [
+     48,
+     652,
+     181,
+     388,
+     23
+    ]
+   }
+  },
+  {
+   "input": {
+    "ram": 4.0,
+    "storage": 128.0,
+    "battery": 4000.0,
+    "charge": 10.0,
+    "camera": 48.0,
+    "frontCamera": 16.0,
+    "displaySize": 6.8,
+    "ppi": 386.0,
+    "refreshRate": 60.0,
+    "cpu": 131544.0,
+    "gpu": 85380.0,
+    "price": 307.0
+   },
+   "expected": {
+    "segment": "Mid-range",
+    "probabilities": {
+     "Budget": 0.31896983834665116,
+     "Flagship": 0.19471259729472126,
+     "Mid-range": 0.48631756435862766
+    },
+    "margin": 0.1673477260119765,
+    "ambiguous": false,
+    "alternativeCount": 298,
+    "inputRank": 252,
+    "inputCloseness": 0.22955897709313255,
+    "top5": [
+     552,
+     638,
+     296,
+     130,
+     425
+    ]
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 256.0,
+    "battery": 4500.0,
+    "charge": 65.0,
+    "camera": 64.0,
+    "frontCamera": 32.0,
+    "displaySize": 6.43,
+    "ppi": 409.0,
+    "refreshRate": 90.0,
+    "cpu": 148126.0,
+    "gpu": 111932.0,
+    "price": 477.0
+   },
+   "expected": {
+    "segment": "Mid-range",
+    "probabilities": {
+     "Budget": 0.03174326744890318,
+     "Flagship": 0.10697270444492374,
+     "Mid-range": 0.8612840281061731
+    },
+    "margin": 0.7543113236612493,
+    "ambiguous": false,
+    "alternativeCount": 298,
+    "inputRank": 165,
+    "inputCloseness": 0.350867448193913,
+    "top5": [
+     552,
+     638,
+     296,
+     130,
+     425
+    ]
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 4800.0,
+    "charge": 68.0,
+    "camera": 50.0,
+    "frontCamera": 60.0,
+    "displaySize": 6.7,
+    "ppi": 393.0,
+    "refreshRate": 144.0,
+    "cpu": 337426.0,
+    "gpu": 454632.0,
+    "price": 250.0
+   },
+   "expected": {
+    "segment": "Flagship",
+    "probabilities": {
+     "Budget": 1.5177844880399116e-07,
+     "Flagship": 0.7689665011028793,
+     "Mid-range": 0.23103334711867185
+    },
+    "margin": 0.5379331539842075,
+    "ambiguous": false,
+    "alternativeCount": 244,
+    "inputRank": 106,
+    "inputCloseness": 0.4174691671449388,
+    "top5": [
+     40,
+     651,
+     240,
+     396,
+     186
+    ]
+   }
+  },
+  {
+   "input": {
+    "ram": 3.0,
+    "storage": 32.0,
+    "battery": 6000.0,
+    "charge": 18.0,
+    "camera": 13.0,
+    "frontCamera": 5.0,
+    "displaySize": 6.71,
+    "ppi": 268.0,
+    "refreshRate": 60.0,
+    "cpu": 52804.0,
+    "gpu": 16776.0,
+    "price": 99.0
+   },
+   "expected": {
+    "segment": "Budget",
+    "probabilities": {
+     "Budget": 0.9848463454318289,
+     "Flagship": 3.019955339276783e-06,
+     "Mid-range": 0.015150634612831879
+    },
+    "margin": 0.9696957108189971,
+    "ambiguous": false,
+    "alternativeCount": 106,
+    "inputRank": 22,
+    "inputCloseness": 0.6505900644527429,
+    "top5": [
+     48,
+     652,
+     181,
+     388,
+     23
+    ]
+   }
+  },
+  {
+   "input": {
+    "ram": 8.0,
+    "storage": 128.0,
+    "battery": 5000.0,
+    "charge": null,
+    "camera": 50.0,
+    "frontCamera": null,
+    "displaySize": 6.7,
+    "ppi": 394.0,
+    "refreshRate": 120.0,
+    "cpu": 238939.0,
+    "gpu": 202349.0,
+    "price": 393.0
+   },
+   "expected": {
+    "segment": "Mid-range",
+    "probabilities": {
+     "Budget": 0.003150720782064776,
+     "Flagship": 0.3784981893359603,
+     "Mid-range": 0.618351089881975
+    },
+    "margin": 0.23985290054601466,
+    "ambiguous": false,
+    "alternativeCount": 298,
+    "inputRank": 52,
+    "inputCloseness": 0.4625519437496269,
+    "top5": [
+     552,
+     638,
+     296,
+     130,
+     425
+    ]
+   }
+  }
+ ],
+ "segmentRankings": {
+  "Budget": {
+   "count": 105,
+   "topIds": [
+    48,
+    652,
+    181,
+    388,
+    23,
+    217,
+    284,
+    267,
+    244,
+    424
+   ],
+   "topCloseness": [
+    0.7656066006494767,
+    0.7490023903430664,
+    0.7459861603490251,
+    0.7357133190270306,
+    0.7284223854695115,
+    0.70518548502381,
+    0.7005000351813894,
+    0.6881482566407421,
+    0.6874046744560212,
+    0.6865721695834511
+   ]
+  },
+  "Mid-range": {
+   "count": 297,
+   "topIds": [
+    552,
+    638,
+    296,
+    130,
+    425,
+    53,
+    83,
+    626,
+    365,
+    476
+   ],
+   "topCloseness": [
+    0.699289227407334,
+    0.6957630401408251,
+    0.6944517336899727,
+    0.6887060027541807,
+    0.6796740092248253,
+    0.6661838226482274,
+    0.6571997254987783,
+    0.6448812566268711,
+    0.6393640422840979,
+    0.6384901769641586
+   ]
+  },
+  "Flagship": {
+   "count": 243,
+   "topIds": [
+    40,
+    651,
+    240,
+    396,
+    186,
+    621,
+    406,
+    18,
+    625,
+    529
+   ],
+   "topCloseness": [
+    0.8243227041737486,
+    0.725591403445885,
+    0.6876431056696467,
+    0.675072900930463,
+    0.664063101014122,
+    0.6082302919139457,
+    0.6009109879098925,
+    0.5933377383237773,
+    0.5882857059168883,
+    0.585421344772704
+   ]
+  }
+ },
+ "ambiguousMargin": 0.15
+}

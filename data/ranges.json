@@ -1,0 +1,71 @@
+{
+  "minmaxReference": {
+    "basis": "Ponsel dengan harga (645)",
+    "ppi": {
+      "min": 257.0,
+      "max": 643.0
+    },
+    "refreshRate": {
+      "min": 60.0,
+      "max": 165.0
+    },
+    "cpu": {
+      "min": 33298.0,
+      "max": 516397.0
+    },
+    "gpu": {
+      "min": 6591.0,
+      "max": 979908.0
+    }
+  },
+  "inputBounds": {
+    "ram": {
+      "min": 2.0,
+      "max": 16.0
+    },
+    "storage": {
+      "min": 16.0,
+      "max": 512.0
+    },
+    "battery": {
+      "min": 2800.0,
+      "max": 7000.0
+    },
+    "charge": {
+      "min": 5.0,
+      "max": 240.0
+    },
+    "camera": {
+      "min": 5.0,
+      "max": 200.0
+    },
+    "frontCamera": {
+      "min": 2.0,
+      "max": 60.0
+    },
+    "displaySize": {
+      "min": 5.1,
+      "max": 8.03
+    },
+    "ppi": {
+      "min": 203.0,
+      "max": 643.0
+    },
+    "refreshRate": {
+      "min": 60.0,
+      "max": 165.0
+    },
+    "cpu": {
+      "min": 33298.0,
+      "max": 538809.0
+    },
+    "gpu": {
+      "min": 6591.0,
+      "max": 979908.0
+    },
+    "price": {
+      "min": 80.0,
+      "max": 2199.0
+    }
+  }
+}
