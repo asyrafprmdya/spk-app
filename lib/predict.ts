@@ -24,12 +24,14 @@ export function predictSegment(input: FeatureInput, model: ModelParams): Predict
     return raw;
   });
 
-  const z = x.map((v, i) => (v - model.mean[i]) / (model.scale[i] === 0 ? 1 : model.scale[i]));
-  const logits = model.coef.map((row, k) => row.reduce((s, c, j) => s + c * z[j], 0) + model.intercept[k]);
-  const peak = Math.max(...logits);
-  const exps = logits.map((l) => Math.exp(l - peak));
-  const total = exps.reduce((s, e) => s + e, 0);
-  const probs = exps.map((e) => e / total);
+  const probs = model.classes.map(() => 0);
+  for (const tree of model.forest) {
+    let n = 0;
+    while (tree.l[n] !== -1) n = x[tree.f[n]] <= tree.t[n] ? tree.l[n] : tree.r[n];
+    tree.v[n].forEach((pv, k) => {
+      probs[k] += pv / model.forest.length;
+    });
+  }
 
   const probabilities = {} as Record<Segment, number>;
   model.classes.forEach((cls, k) => {

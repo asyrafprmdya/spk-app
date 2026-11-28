@@ -6,9 +6,9 @@ const lo = Math.log(70), hi = Math.log(2400);
 const jit = (id: number) => ((id * 9301 + 49297) % 233280) / 233280;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-type Props = { phones: Phone[]; price: number | null; segment: Segment | null; top: number[] };
+type Props = { phones: Phone[]; marks: { price: number; label: string }[]; segment: Segment | null; top: number[] };
 
-function Chart({ phones, price, segment, top, compact }: Props & { compact: boolean }) {
+function Chart({ phones, marks, segment, top, compact }: Props & { compact: boolean }) {
   const W = compact ? 420 : 1200;
   const L = compact ? 14 : 150;
   const R = compact ? 14 : 24;
@@ -20,8 +20,6 @@ function Chart({ phones, price, segment, top, compact }: Props & { compact: bool
   const px = (p: number) => r2(L + ((Math.log(Math.min(2400, Math.max(70, p))) - lo) / (hi - lo)) * (W - L - R));
   const priced = phones.filter((p) => p.price !== null);
   const topSet = new Set(top);
-  const fw = compact ? 112 : 124;
-  const fx = price ? r2(Math.min(Math.max(px(price) - fw / 2, 2), W - fw - 2)) : 0;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className={compact ? "map map-m" : "map map-d"} role="img" aria-label="Sebaran harga ponsel per segmen pada sumbu harga yang sama">
       {LANES.map((s, i) => {
@@ -47,13 +45,13 @@ function Chart({ phones, price, segment, top, compact }: Props & { compact: bool
           <text x={px(t)} y={T + LH * 3 + 28} textAnchor="middle" className="tick">${t.toLocaleString("en-US")}</text>
         </g>
       ))}
-      {price !== null && price > 0 && (
-        <g>
-          <line x1={px(price)} x2={px(price)} y1={T - 8} y2={T + LH * 3} stroke="var(--ink)" strokeWidth={3} />
-          <rect x={fx} y={4} width={fw} height={compact ? 28 : 30} fill="var(--ink)" />
-          <text x={r2(fx + fw / 2)} y={compact ? 23 : 24} textAnchor="middle" className="flag">Ponsel kamu ${Math.round(price)}</text>
+      {marks.map((m) => (
+        <g key={m.label}>
+          <line x1={px(m.price)} x2={px(m.price)} y1={T - 8} y2={T + LH * 3} stroke="var(--ink)" strokeWidth={3} />
+          <rect x={r2(Math.max(2, Math.min(W - 26, px(m.price) - 12)))} y={6} width={24} height={26} fill="var(--ink)" />
+          <text x={r2(Math.max(14, Math.min(W - 14, px(m.price))))} y={25} textAnchor="middle" className="flag">{m.label}</text>
         </g>
-      )}
+      ))}
     </svg>
   );
 }

@@ -6,8 +6,8 @@ const syne = Syne({ variable: "--font-syne", subsets: ["latin"], weight: ["600",
 const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SPK Smartphone Berbasis Segmen",
-  description: "Logistic Regression menebak segmen, AHP memberi bobot, TOPSIS memeringkat.",
+  title: "SPK Smartphone Berbasis Segmen: Random Forest, AHP, dan TOPSIS",
+  description: "Random Forest menebak segmen, matriks AHP memberi bobot, TOPSIS memeringkat.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

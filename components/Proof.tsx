@@ -1,5 +1,5 @@
 import evaluation from "@/data/evaluation.json";
-import { ahp, phones } from "@/lib/data";
+import { ahp, modelParams, phones } from "@/lib/data";
 import type { Segment } from "@/lib/types";
 
 const SEGS: Segment[] = ["Budget", "Mid-range", "Flagship"];
@@ -20,7 +20,7 @@ export default function Proof() {
       <div className="pgrid">
         <div>
           <h3>Salah tebak selalu ke tetangga terdekat</h3>
-          <p className="hint">Akurasi {f(c.accuracy * 100, 1)}%, F1 macro {f(c.macro.f1 * 100, 1)}%. Baris adalah segmen sebenarnya, kolom adalah tebakan.</p>
+          <p className="hint">Random Forest, data uji 133 ponsel: akurasi {f(c.accuracy * 100, 1)}%, F1 macro {f(c.macro.f1 * 100, 1)}%. Baris adalah segmen sebenarnya, kolom adalah tebakan.</p>
           <div className="cm">
             <span />
             {c.labels.map((l) => <span className="ch" key={l}>{l}</span>)}
@@ -34,6 +34,10 @@ export default function Proof() {
               ];
             })}
           </div>
+          <h3 style={{ marginTop: 26 }}>Adu model (macro-F1 validasi silang, data latih)</h3>
+          {Object.entries(c.cvByModel).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+            <div className="wb" key={k}><span>{k}</span><span className="wt"><i style={{ width: `${v * 100}%` }} /></span><b>{f(v * 100, 1)}</b></div>
+          ))}
         </div>
         <div>
           <h3>Bobot tiap segmen jauh dari bobot rata-rata</h3>
@@ -61,7 +65,8 @@ export default function Proof() {
       </table>
       <div className="notes">
         <p><b>Budget paling terpengaruh bobot.</b> Korelasinya dengan bobot tunggal cuma {f(vs.Budget.spearman)}, karena harga berbobot 42,9% di sini dan 17,2% di bobot tunggal.</p>
-        <p><b>Mid-range paling rawan.</b> Recall cuma {f(c.perClass["Mid-range"].recall * 100, 1)}%. Sepuluh Mid-range terbaik menurut label semuanya ditebak Flagship, coba preset terakhir.</p>
+<p><b>Mid-range paling rawan.</b> Recall {f(c.perClass["Mid-range"].recall * 100, 1)}%, salah tebaknya menyebar ke Budget dan Flagship.</p>
+        <p><b>Fitur paling berpengaruh.</b> {Object.entries(c.importances).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${modelParams.featureLabels[k] ?? k} (${f(v * 100, 1)}%)`).join(", ")} menurut importansi Random Forest.</p>
         <p><b>Sensitivitas.</b> Mengubah bobot ±10% tidak mengganti juara segmen (Spearman minimal {f(sens, 4)}).</p>
       </div>
     </section>

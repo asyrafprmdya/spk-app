@@ -19,23 +19,21 @@ export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export type FeatureInput = Partial<Record<FeatureKey, number | null>>;
 export type PhoneInput = FeatureInput & { price: number };
 
+export interface ForestTree {
+  f: number[];
+  t: number[];
+  l: number[];
+  r: number[];
+  v: number[][];
+}
+
 export interface ModelParams {
-  meta: {
-    algorithm: string;
-    seed: number;
-    trainSize: number;
-    testSize: number;
-    bestC: number;
-    note: string;
-  };
+  meta: Record<string, unknown>;
   classes: Segment[];
   features: FeatureKey[];
-  featureLabels: Record<FeatureKey, string>;
+  featureLabels: Record<string, string>;
   median: number[];
-  mean: number[];
-  scale: number[];
-  coef: number[][];
-  intercept: number[];
+  forest: ForestTree[];
 }
 
 export interface Criterion {

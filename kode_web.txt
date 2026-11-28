@@ -1,0 +1,1282 @@
+﻿=== D:\spk-web-data-layer\spk-app\app\api\recommended\route.ts ===
+import { NextResponse } from 'next/server';
+import { InputError, recommend } from '@/lib/recommend';
+
+export async function POST(req: Request) {
+  try {
+    const result = recommend(await req.json());
+    return NextResponse.json({ ...result, ranking: result.ranking.slice(0, 20) });
+  } catch (e) {
+    if (e instanceof InputError) return NextResponse.json({ errors: e.errors }, { status: 400 });
+    return NextResponse.json({ errors: ['Terjadi kesalahan server'] }, { status: 500 });
+  }
+}
+=== D:\spk-web-data-layer\spk-app\app\layout.tsx ===
+import type { Metadata } from "next";
+import { Syne, Hanken_Grotesk } from "next/font/google";
+import "./globals.css";
+
+const syne = Syne({ variable: "--font-syne", subsets: ["latin"], weight: ["600", "800"] });
+const hanken = Hanken_Grotesk({ variable: "--font-hanken", subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "SPK Smartphone Berbasis Segmen: Random Forest, AHP, dan TOPSIS",
+  description: "Random Forest menebak segmen, matriks AHP memberi bobot, TOPSIS memeringkat.",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="id" className={`${syne.variable} ${hanken.variable}`}>
+      <body>{children}</body>
+    </html>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\app\page.tsx ===
+import Dashboard from "@/components/Dashboard";
+import Proof from "@/components/Proof";
+import Survey from "@/components/Survey";
+
+export default function Home() {
+  return (
+    <main className="page">
+      <nav className="sitenav" aria-label="Navigasi halaman">
+        <b>SPK Smartphone</b>
+        <a href="#mulai">Mulai</a>
+        <a href="#alternatif">1 Alternatif</a>
+        <a href="#bobot">2 Bobot</a>
+        <a href="#hasil">3 Hasil</a>
+        <a href="#kuesioner">Kuesioner</a>
+        <a href="#bukti">Bukti</a>
+      </nav>
+      <header className="head">
+        <h1>Segmen dulu, baru peringkat.</h1>
+        <p>
+          Harga Budget, Mid-range, dan Flagship saling menumpuk, jadi harga saja tidak bisa menentukan segmen. Random Forest menebak segmen dari spesifikasi, bobot kriteria disusun lewat matriks perbandingan AHP (bisa kamu isi sendiri), lalu TOPSIS memeringkat alternatif.
+        </p>
+      </header>
+      <Dashboard />
+      <Survey />
+      <Proof />
+      <footer className="foot">Asyraf Pramudya Azhar AB dan Reefat Rabani Izzan. 663 ponsel dari 21 merek (NanoReview). Bobot AHP dari sintesis literatur, bukan survei responden.</footer>
+    </main>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\components\Dashboard.tsx ===
+"use client";
+
+import { useRef, useState } from "react";
+import PriceMap from "./PriceMap";
+import { ahp, phones } from "@/lib/data";
+import { analyze, CR_LIMIT, EQUAL, PAIRS, SAATY, TEMPLATES } from "@/lib/ahp";
+import { predictAlt, rankPool } from "@/lib/multi";
+import type { UserAlt } from "@/lib/multi";
+import { validateInput } from "@/lib/recommend";
+import type { PhoneInput, Segment } from "@/lib/types";
+
+const FIELDS = [
+  { k: "ram", l: "RAM", u: "GB", min: 2, max: 16, step: 1, req: true },
+  { k: "storage", l: "Penyimpanan", u: "GB", min: 16, max: 512, step: 16, req: true },
+  { k: "battery", l: "Baterai", u: "mAh", min: 2800, max: 7000, step: 100, req: true },
+  { k: "camera", l: "Kamera utama", u: "MP", min: 5, max: 200, step: 1, req: true },
+  { k: "ppi", l: "PPI layar", u: "", min: 203, max: 643, step: 1, req: true },
+  { k: "refreshRate", l: "Refresh rate", u: "Hz", min: 60, max: 165, step: 1, req: true },
+  { k: "cpu", l: "Skor CPU", u: "", min: 33298, max: 538809, step: 1000, req: true },
+  { k: "gpu", l: "Skor GPU", u: "", min: 6591, max: 979908, step: 1000, req: true },
+  { k: "price", l: "Harga", u: "USD", min: 80, max: 2199, step: 5, req: true },
+  { k: "charge", l: "Daya charging", u: "W", min: 5, max: 240, step: 5, req: false },
+  { k: "frontCamera", l: "Kamera depan", u: "MP", min: 2, max: 60, step: 1, req: false },
+  { k: "displaySize", l: "Ukuran layar", u: "inci", min: 5.1, max: 8.03, step: 0.01, req: false },
+] as const;
+
+type Vals = Record<string, string>;
+const SEGS: Segment[] = ["Budget", "Mid-range", "Flagship"];
+const COLOR: Record<Segment, string> = { Budget: "var(--budget)", "Mid-range": "var(--mid)", Flagship: "var(--flag)" };
+const LET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const blank = (): Vals => Object.fromEntries(FIELDS.map((f) => [f.k, ""]));
+const f = (n: number, d = 2) => n.toFixed(d).replace(".", ",");
+const pct = (n: number, d = 0) => f(n * 100, d) + "%";
+const toInput = (v: Vals) => Object.fromEntries(FIELDS.map((fl) => [fl.k, v[fl.k].trim() === "" ? null : Number(v[fl.k])])) as unknown as PhoneInput;
+const goto = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+
+function fromPhone(p: (typeof phones)[number], name: string): UserAlt {
+  const rec = p as unknown as Record<string, number | null>;
+  const input = Object.fromEntries(FIELDS.map((fl) => [fl.k, rec[fl.k] ?? null])) as unknown as PhoneInput;
+  return { uid: `t${p.id}`, name, srcId: p.id, input };
+}
+
+function templateAlts(): UserAlt[] {
+  const seen = new Set<string>();
+  const out: UserAlt[] = [];
+  for (const p of phones) {
+    if (p.segment === "Mid-range" && p.price !== null && p.price >= 280 && p.price <= 420 && !seen.has(p.brand)) {
+      seen.add(p.brand);
+      out.push(fromPhone(p, `Kandidat ${LET[out.length]} (${p.brand})`));
+      if (out.length === 3) break;
+    }
+  }
+  return out;
+}
+
+const COLS = ["nama", ...FIELDS.map((x) => x.k)];
+
+function downloadTemplate() {
+  const ex = [
+    ["Contoh A", 8, 256, 5000, 64, 395, 120, 250000, 300000, 320, 45, 16, 6.7],
+    ["Contoh B", 12, 256, 5500, 50, 440, 144, 400000, 550000, 520, 67, 32, 6.8],
+  ];
+  const csv = [COLS.join(","), ...ex.map((r) => r.join(","))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "template-alternatif.csv";
+  a.click();
+}
+
+export default function Dashboard() {
+  const cnt = useRef(0);
+  const [alts, setAlts] = useState<UserAlt[]>(templateAlts);
+  const [form, setForm] = useState<{ name: string; vals: Vals; srcId: number | null }>({ name: "", vals: blank(), srcId: null });
+  const [formErr, setFormErr] = useState<string[]>([]);
+  const [brand, setBrand] = useState("");
+  const [wmode, setWmode] = useState<"auto" | "custom">("auto");
+  const [pairs, setPairs] = useState<number[]>(EQUAL);
+  const [segMode, setSegMode] = useState<"auto" | Segment>("auto");
+  const [note, setNote] = useState("");
+
+  const brands = Array.from(new Set(phones.map((p) => p.brand))).sort();
+  const preds = alts.map(predictAlt);
+  const seg: Segment = segMode === "auto" ? (preds[0]?.segment ?? "Mid-range") : segMode;
+  const an = analyze(pairs);
+  const w = wmode === "auto" ? ahp.segments[seg].weights : an.weights;
+  const rows = alts.length ? rankPool(alts, seg, w) : [];
+  const top = rows.slice(0, 10);
+  const mine = rows.filter((r) => r.uid && r.rank > 10);
+  const topIds = top.filter((r) => r.key.startsWith("p")).map((r) => Number(r.key.slice(1)));
+  const letter = (uid: string | null) => LET[alts.findIndex((a) => a.uid === uid)] ?? "?";
+
+  const tryAdd = (name: string, vals: Vals, srcId: number | null) => {
+    const input = toInput(vals);
+    const v = validateInput(input);
+    if (v.errors.length) return v.errors;
+    setAlts((a) => [...a, { uid: `u${++cnt.current}`, name: name.trim() || `Alternatif ${a.length + 1}`, srcId, input }]);
+    return [];
+  };
+  const setPair = (k: number, v: number) => {
+    setPairs((p) => p.map((x, i) => (i === k ? v : x)));
+    setWmode("custom");
+  };
+  const pickPhone = (id: number) => {
+    const p = phones.find((x) => x.id === id);
+    if (!p) return;
+    const rec = p as unknown as Record<string, number | null>;
+    setForm({ name: `${p.brand} ${p.ram}/${p.storage}`, srcId: p.id, vals: Object.fromEntries(FIELDS.map((fl) => [fl.k, rec[fl.k] === null || rec[fl.k] === undefined ? "" : String(rec[fl.k])])) });
+    setFormErr([]);
+  };
+  const upload = (file: File | undefined) => {
+    if (!file) return;
+    file.text().then((t) => {
+      const lines = t.split(/\r?\n/).filter((l) => l.trim());
+      const head = lines[0].split(/[,;]/).map((x) => x.trim());
+      let ok = 0;
+      const bad: string[] = [];
+      const next: UserAlt[] = [];
+      lines.slice(1).forEach((ln, n) => {
+        const c = ln.split(/[,;]/).map((x) => x.trim());
+        const vals = blank();
+        FIELDS.forEach((fl) => {
+          const i = head.indexOf(fl.k);
+          if (i >= 0) vals[fl.k] = c[i] ?? "";
+        });
+        const input = toInput(vals);
+        if (validateInput(input).errors.length) bad.push(`baris ${n + 2}`);
+        else {
+          ok++;
+          next.push({ uid: `u${++cnt.current}`, name: c[head.indexOf("nama")] || `Alternatif CSV ${n + 1}`, srcId: null, input });
+        }
+      });
+      setAlts((a) => [...a, ...next]);
+      setNote(`${ok} alternatif dari CSV ditambahkan.${bad.length ? ` Dilewati karena tidak valid: ${bad.join(", ")}.` : ""}`);
+    });
+  };
+  const startTemplate = () => {
+    setAlts(templateAlts());
+    setWmode("auto");
+    setSegMode("auto");
+    setNote("");
+    goto("hasil");
+  };
+  const startManual = () => {
+    setAlts([]);
+    setForm({ name: "", vals: blank(), srcId: null });
+    setPairs(EQUAL);
+    setWmode("custom");
+    setSegMode("auto");
+    setNote("");
+    goto("alternatif");
+  };
+  const lbl = (v: number, a: string, b: string) => (v === 1 ? "Sama penting" : v > 1 ? `${a} ${v}x lebih penting` : `${b} ${Math.round(1 / v)}x lebih penting`);
+  const crit = ahp.criteria;
+  const mism = alts.map((a, i) => ({ a, i })).filter(({ i }) => preds[i].segment !== seg);
+
+  return (
+    <>
+      <section className="start" id="mulai">
+        <h2>Mulai dari mana?</h2>
+        <p className="hint">Tiga langkah: isi alternatif ponsel, tentukan bobot kriteria lewat matriks perbandingan, lalu baca peringkatnya.</p>
+        <div className="btnrow">
+          <button className="big" onClick={startTemplate}>Pakai template<small>3 kandidat Mid-range dan bobot AHP segmen, langsung ada hasil</small></button>
+          <button className="big" onClick={startManual}>Isi sendiri<small>Daftar alternatif kosong, matriks bobot mulai dari sama penting</small></button>
+        </div>
+      </section>
+
+      <section className="step" id="alternatif">
+        <h2><span>1</span>Alternatif ponsel</h2>
+        <div className="cols">
+          <div>
+            <h3>Daftar alternatif ({alts.length})</h3>
+            {alts.length === 0 && <p className="hint">Belum ada. Tambahkan lewat formulir, pilih dari dataset, atau unggah CSV.</p>}
+            <ul className="alts">
+              {alts.map((a, i) => (
+                <li key={a.uid}>
+                  <span className="badge">{LET[i]}</span>
+                  <span className="an"><b>{a.name}</b><small>{a.input.ram}/{a.input.storage}, {a.input.battery} mAh, ${a.input.price}</small></span>
+                  <span className="chipseg" style={{ background: COLOR[preds[i].segment] }}>{preds[i].segment} {pct(preds[i].probabilities[preds[i].segment])}</span>
+                  <button className="x" aria-label={`Hapus ${a.name}`} onClick={() => setAlts((l) => l.filter((y) => y.uid !== a.uid))}>Hapus</button>
+                </li>
+              ))}
+            </ul>
+            <h3 style={{ marginTop: 22 }}>Template alternatif</h3>
+            <p className="hint">Unduh CSV, isi di Excel atau Sheets, lalu unggah lagi. Nama kolom jangan diubah.</p>
+            <div className="presets">
+              <button onClick={downloadTemplate}>Unduh template CSV</button>
+              <label className="filebtn">Unggah CSV<input type="file" accept=".csv,text/csv" onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} /></label>
+            </div>
+            {note && <p className="hint" role="status">{note}</p>}
+            <p className="hint" style={{ marginBottom: 6 }}>Atau ambil spesifikasi dari dataset sebagai titik awal:</p>
+            <div className="pick">
+              <select aria-label="Merek" value={brand} onChange={(e) => setBrand(e.target.value)}>
+                <option value="">Pilih merek</option>
+                {brands.map((b) => <option key={b}>{b}</option>)}
+              </select>
+              <select aria-label="Model" disabled={!brand} value="" onChange={(e) => pickPhone(Number(e.target.value))}>
+                <option value="">Pilih model</option>
+                {phones.filter((p) => p.brand === brand && p.price !== null).map((p) => <option key={p.id} value={p.id}>{p.ram}/{p.storage}, {p.battery} mAh, ${Math.round(p.price as number)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <h3>Tambah alternatif baru</h3>
+            <div className="fld" style={{ gridTemplateColumns: "1fr" }}>
+              <label htmlFor="nm">Nama alternatif</label>
+              <input id="nm" type="text" className="txt" placeholder="Misal: Ponsel incaran saya" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            {FIELDS.map((fl) => (
+              <div className="fld" key={fl.k}>
+                <label htmlFor={`n_${fl.k}`}>{fl.l}<small>{fl.u}{fl.req ? "" : " (opsional)"}</small></label>
+                <input type="range" aria-label={fl.l} min={fl.min} max={fl.max} step={fl.step} value={Number(form.vals[fl.k]) || fl.min} onChange={(e) => setForm({ ...form, vals: { ...form.vals, [fl.k]: e.target.value } })} />
+                <input id={`n_${fl.k}`} type="number" step="any" value={form.vals[fl.k]} onChange={(e) => setForm({ ...form, vals: { ...form.vals, [fl.k]: e.target.value } })} />
+              </div>
+            ))}
+            {formErr.map((e) => <p className="warn" key={e}>{e}</p>)}
+            <div className="presets" style={{ marginTop: 12 }}>
+              <button className="solid" onClick={() => { const e = tryAdd(form.name, form.vals, form.srcId); setFormErr(e); if (!e.length) setForm({ name: "", vals: blank(), srcId: null }); }}>Tambah ke daftar</button>
+              <button onClick={() => { setForm({ name: "", vals: blank(), srcId: null }); setFormErr([]); }}>Kosongkan</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="step" id="bobot">
+        <h2><span>2</span>Bobot kriteria</h2>
+        <p className="hint">Bandingkan tingkat kepentingan tiap pasang kriteria dengan skala 1 sampai 9 (matriks prioritas AHP). Sistem menghitung bobotnya dan menguji konsistensi jawabanmu.</p>
+        <div className="presets">
+          <button aria-pressed={wmode === "auto"} onClick={() => setWmode("auto")}>Otomatis (AHP segmen {seg})</button>
+          {TEMPLATES.map((t) => <button key={t.id} onClick={() => { setPairs(t.pairs); setWmode("custom"); }}>Template {t.id}</button>)}
+          <button onClick={() => { setPairs(EQUAL); setWmode("custom"); }}>Isi sendiri dari nol</button>
+        </div>
+        <div className="cols">
+          <div>
+            {wmode === "custom" ? (
+              <div className="pairs">
+                {PAIRS.map(([i, j], k) => (
+                  <div className="pr" key={k}>
+                    <label htmlFor={`pr${k}`}>{crit[i].name} <small>vs</small> {crit[j].name}</label>
+                    <select id={`pr${k}`} value={SAATY.indexOf(pairs[k])} onChange={(e) => setPair(k, SAATY[Number(e.target.value)])}>
+                      {SAATY.map((s, x) => <option key={x} value={x}>{lbl(s, crit[i].name, crit[j].name)}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="hint">Mode otomatis memakai bobot AHP yang sudah disusun untuk segmen {seg}. Pilih template atau isi sendiri untuk menyusun matriksmu.</p>
+            )}
+          </div>
+          <div>
+            <h3>Bobot hasil</h3>
+            {crit.map((c, j) => (
+              <div className="wb" key={c.code}>
+                <span>{c.name}{c.type === "cost" ? " (cost)" : ""}</span>
+                <span className="wt"><i style={{ width: `${(w[j] / 0.6) * 100}%` }} /></span>
+                <b>{pct(w[j])}</b>
+              </div>
+            ))}
+            {wmode === "custom" ? (
+              <div className={an.consistent ? "cons ok" : "cons bad"} role="status">
+                <b>{an.consistent ? "Konsisten" : "Belum konsisten"}: CR = {f(an.cr, 3)}</b>
+                <span>Î»max {f(an.lambdaMax, 3)}, CI {f(an.ci, 3)}, RI 1,32, batas CR {f(CR_LIMIT, 1)}</span>
+                {!an.consistent && (
+                  <span>
+                    Jawaban paling bertentangan: {crit[an.worst.i].name} vs {crit[an.worst.j].name}. Saran: {lbl(an.worst.suggest, crit[an.worst.i].name, crit[an.worst.j].name)}.{" "}
+                    <button className="lnk" onClick={() => setPair(an.worst.k, an.worst.suggest)}>Terapkan saran</button>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="cons ok"><b>Bobot literatur: CR = {f(ahp.segments[seg].cr, 3)}</b><span>Sudah lolos uji konsistensi.</span></div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="step" id="hasil">
+        <h2><span>3</span>Hasil peringkat</h2>
+        <PriceMap phones={phones} marks={alts.map((a, i) => ({ price: a.input.price as number, label: LET[i] }))} segment={rows.length ? seg : null} top={topIds} />
+        <div className="presets" style={{ marginTop: 14 }}>
+          <span className="hint" style={{ margin: "6px 6px 0 0" }}>Segmen pembanding:</span>
+          <button aria-pressed={segMode === "auto"} onClick={() => setSegMode("auto")}>Otomatis ({seg})</button>
+          {SEGS.map((s) => <button key={s} aria-pressed={segMode === s} onClick={() => setSegMode(s)}>{s}</button>)}
+        </div>
+        {rows.length === 0 ? (
+          <p className="sentence">Tambahkan minimal satu alternatif di langkah 1.</p>
+        ) : (
+          <div className="cols" style={{ marginTop: 10 }}>
+            <div>
+              <p className="sentence">Dibandingkan dengan {rows.length - alts.length} ponsel di segmen <b style={{ boxShadow: `inset 0 -0.38em 0 ${COLOR[seg]}` }}>{seg}</b>.</p>
+              {wmode === "custom" && !an.consistent && <p className="warn">Bobotmu belum konsisten (CR {f(an.cr, 3)}). Peringkat tetap dihitung, tapi perbaiki matriks di langkah 2 dulu.</p>}
+              {mism.map(({ a, i }) => <p className="warn" key={a.uid}>{LET[i]} ({a.name}) ditebak model sebagai {preds[i].segment}, tetapi dibandingkan di pool {seg}.</p>)}
+              <table className="tbl">
+                <thead><tr><th></th><th>Alternatif</th><th>Tebakan model</th><th>Urutan</th><th>V</th></tr></thead>
+                <tbody>
+                  {alts.map((a, i) => {
+                    const r = rows.find((x) => x.uid === a.uid);
+                    return (
+                      <tr key={a.uid}>
+                        <td><span className="badge">{LET[i]}</span></td>
+                        <td><b>{a.name}</b></td>
+                        <td>{preds[i].segment} {pct(preds[i].probabilities[preds[i].segment])}{preds[i].ambiguous ? " (tipis)" : ""}</td>
+                        <td><b>{r?.rank}</b> dari {rows.length}</td>
+                        <td>{f(r?.closeness ?? 0, 3)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3>Peringkat di {seg}</h3>
+              <ol className="rank">
+                {[...top, ...mine].map((r, i) => (
+                  <li key={r.key} className={r.uid ? "rk me" : "rk"} style={r.uid && i >= top.length && i === top.length ? { marginTop: 14 } : undefined}>
+                    <span className="n">{r.uid ? letter(r.uid) : r.rank}</span>
+                    <span className="nm"><b>{r.name}</b><small>{r.uid ? `Urutan ${r.rank}. ` : ""}{r.sub}</small></span>
+                    <span className="bar"><i style={{ width: `${r.closeness * 100}%` }} /></span>
+                    <span className="v">{f(r.closeness, 3)}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\components\PriceMap.tsx ===
+import type { Phone, Segment } from "@/lib/types";
+
+const LANES: Segment[] = ["Budget", "Mid-range", "Flagship"];
+const FILL: Record<Segment, string> = { Budget: "var(--budget)", "Mid-range": "var(--mid)", Flagship: "var(--flag)" };
+const lo = Math.log(70), hi = Math.log(2400);
+const jit = (id: number) => ((id * 9301 + 49297) % 233280) / 233280;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+type Props = { phones: Phone[]; marks: { price: number; label: string }[]; segment: Segment | null; top: number[] };
+
+function Chart({ phones, marks, segment, top, compact }: Props & { compact: boolean }) {
+  const W = compact ? 420 : 1200;
+  const L = compact ? 14 : 150;
+  const R = compact ? 14 : 24;
+  const T = compact ? 46 : 52;
+  const LH = compact ? 96 : 100;
+  const dTop = compact ? 30 : 14;
+  const dBot = compact ? 12 : 14;
+  const H = T + LH * 3 + 40;
+  const px = (p: number) => r2(L + ((Math.log(Math.min(2400, Math.max(70, p))) - lo) / (hi - lo)) * (W - L - R));
+  const priced = phones.filter((p) => p.price !== null);
+  const topSet = new Set(top);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={compact ? "map map-m" : "map map-d"} role="img" aria-label="Sebaran harga ponsel per segmen pada sumbu harga yang sama">
+      {LANES.map((s, i) => {
+        const ps = priced.filter((p) => p.segment === s);
+        const mn = Math.min(...ps.map((p) => p.price as number));
+        const mx = Math.max(...ps.map((p) => p.price as number));
+        const y0 = T + i * LH;
+        const on = segment === s;
+        return (
+          <g key={s} opacity={segment && !on ? 0.5 : 1}>
+            <rect x={px(mn)} y={y0 + 4} width={r2(px(mx) - px(mn))} height={LH - 8} fill={FILL[s]} fillOpacity={0.16} stroke={on ? "var(--ink)" : "none"} strokeWidth={2.5} />
+            <text x={compact ? L : 0} y={y0 + (compact ? 22 : 46)} className="lane">{s}</text>
+            <text x={compact ? W - R : 0} y={y0 + (compact ? 22 : 68)} textAnchor={compact ? "end" : "start"} className="lanesub">${mn} sampai ${mx.toLocaleString("en-US")}</text>
+            {ps.map((p) => (
+              <circle key={p.id} cx={px(p.price as number)} cy={r2(y0 + dTop + jit(p.id) * (LH - dTop - dBot))} r={topSet.has(p.id) ? 6 : 3.2} fill={FILL[s]} fillOpacity={topSet.has(p.id) ? 1 : 0.7} stroke={topSet.has(p.id) ? "var(--ink)" : "none"} strokeWidth={2} />
+            ))}
+          </g>
+        );
+      })}
+      {[100, 200, 500, 1000, 2000].map((t) => (
+        <g key={t}>
+          <line x1={px(t)} x2={px(t)} y1={T} y2={T + LH * 3 + 8} stroke="var(--ink)" strokeOpacity={0.18} />
+          <text x={px(t)} y={T + LH * 3 + 28} textAnchor="middle" className="tick">${t.toLocaleString("en-US")}</text>
+        </g>
+      ))}
+      {marks.map((m) => (
+        <g key={m.label}>
+          <line x1={px(m.price)} x2={px(m.price)} y1={T - 8} y2={T + LH * 3} stroke="var(--ink)" strokeWidth={3} />
+          <rect x={r2(Math.max(2, Math.min(W - 26, px(m.price) - 12)))} y={6} width={24} height={26} fill="var(--ink)" />
+          <text x={r2(Math.max(14, Math.min(W - 14, px(m.price))))} y={25} textAnchor="middle" className="flag">{m.label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+export default function PriceMap(props: Props) {
+  return (
+    <div className="mapwrap" id="peta">
+      <Chart {...props} compact={false} />
+      <Chart {...props} compact />
+    </div>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\components\Proof.tsx ===
+import evaluation from "@/data/evaluation.json";
+import { ahp, modelParams, phones } from "@/lib/data";
+import type { Segment } from "@/lib/types";
+
+const SEGS: Segment[] = ["Budget", "Mid-range", "Flagship"];
+const COLOR: Record<Segment, string> = { Budget: "var(--budget)", "Mid-range": "var(--mid)", Flagship: "var(--flag)" };
+const f = (n: number, d = 3) => n.toFixed(d).replace(".", ",");
+const name = (id: number) => {
+  const p = phones.find((x) => x.id === id);
+  return p ? `${p.brand} ${p.ram}/${p.storage}, $${Math.round(p.price ?? 0)}` : "-";
+};
+
+export default function Proof() {
+  const c = evaluation.classification;
+  const vs = evaluation.segmentVsSingle.perSegment as Record<Segment, { n: number; spearman: number; top10Overlap: number; top1Segment: number; top1Single: number }>;
+  const sens = Math.min(...Object.values(evaluation.sensitivity.perSegment).flatMap((l) => l.map((x) => x.spearman)));
+  return (
+    <section className="proof" id="bukti">
+      <h2>Seberapa bisa dipercaya</h2>
+      <div className="pgrid">
+        <div>
+          <h3>Salah tebak selalu ke tetangga terdekat</h3>
+          <p className="hint">Random Forest, data uji 133 ponsel: akurasi {f(c.accuracy * 100, 1)}%, F1 macro {f(c.macro.f1 * 100, 1)}%. Baris adalah segmen sebenarnya, kolom adalah tebakan.</p>
+          <div className="cm">
+            <span />
+            {c.labels.map((l) => <span className="ch" key={l}>{l}</span>)}
+            {c.confusionMatrix.map((row, i) => {
+              const sum = row.reduce((a, b) => a + b, 0);
+              return [
+                <span className="ch r" key={`h${i}`}>{c.labels[i]}</span>,
+                ...row.map((x, j) => (
+                  <b key={`${i}${j}`} style={{ background: `color-mix(in srgb, ${i === j ? COLOR[c.labels[i] as Segment] : "var(--ink)"} ${Math.round(8 + (x / sum) * 70)}%, var(--ground))` }}>{x}</b>
+                )),
+              ];
+            })}
+          </div>
+          <h3 style={{ marginTop: 26 }}>Adu model (macro-F1 validasi silang, data latih)</h3>
+          {Object.entries(c.cvByModel).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+            <div className="wb" key={k}><span>{k}</span><span className="wt"><i style={{ width: `${v * 100}%` }} /></span><b>{f(v * 100, 1)}</b></div>
+          ))}
+        </div>
+        <div>
+          <h3>Bobot tiap segmen jauh dari bobot rata-rata</h3>
+          <p className="hint">Titik berwarna adalah segmen, cincin hitam adalah bobot tunggal. Skala 0 sampai 45%.</p>
+          {ahp.criteria.map((cr, j) => (
+            <div className="wrow" key={cr.code}>
+              <b>{cr.name}</b>
+              <div className="wtrack">
+                {SEGS.map((s) => <i key={s} style={{ left: `${(ahp.segments[s].weights[j] / 0.45) * 100}%`, background: COLOR[s] }} title={`${s} ${f(ahp.segments[s].weights[j] * 100, 1)}%`} />)}
+                <i className="ring" style={{ left: `${(ahp.single.weights[j] / 0.45) * 100}%` }} title="Tunggal" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Segmen</th><th>Alternatif</th><th>Spearman</th><th>Top-10 sama</th><th>Juara bobot segmen</th><th>Juara bobot tunggal</th></tr></thead>
+        <tbody>
+          {SEGS.map((s) => (
+            <tr key={s}>
+              <td><b>{s}</b></td><td>{vs[s].n}</td><td><b>{f(vs[s].spearman)}</b></td><td><b>{Math.round(vs[s].top10Overlap * 100)}%</b></td><td>{name(vs[s].top1Segment)}</td><td>{name(vs[s].top1Single)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="notes">
+        <p><b>Budget paling terpengaruh bobot.</b> Korelasinya dengan bobot tunggal cuma {f(vs.Budget.spearman)}, karena harga berbobot 42,9% di sini dan 17,2% di bobot tunggal.</p>
+<p><b>Mid-range paling rawan.</b> Recall {f(c.perClass["Mid-range"].recall * 100, 1)}%, salah tebaknya menyebar ke Budget dan Flagship.</p>
+        <p><b>Fitur paling berpengaruh.</b> {Object.entries(c.importances).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${modelParams.featureLabels[k] ?? k} (${f(v * 100, 1)}%)`).join(", ")} menurut importansi Random Forest.</p>
+        <p><b>Sensitivitas.</b> Mengubah bobot Â±10% tidak mengganti juara segmen (Spearman minimal {f(sens, 4)}).</p>
+      </div>
+    </section>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\components\Survey.tsx ===
+"use client";
+
+import { useEffect, useState } from "react";
+
+const Q = [
+  "Saya merasa akan sering menggunakan sistem ini.",
+  "Saya merasa sistem ini terlalu rumit.",
+  "Saya merasa sistem ini mudah digunakan.",
+  "Saya membutuhkan bantuan orang teknis agar dapat menggunakan sistem ini.",
+  "Saya merasa fitur-fitur pada sistem ini terintegrasi dengan baik.",
+  "Saya merasa ada terlalu banyak ketidakkonsistenan pada sistem ini.",
+  "Saya merasa kebanyakan orang akan cepat belajar menggunakan sistem ini.",
+  "Saya merasa sistem ini sangat membingungkan.",
+  "Saya merasa sangat percaya diri menggunakan sistem ini.",
+  "Saya perlu belajar banyak hal sebelum dapat menggunakan sistem ini.",
+];
+const KEY = "spk-sus-responses";
+type Resp = { name: string; a: number[]; s: number };
+const sus = (a: number[]) => a.reduce((s, x, i) => s + (i % 2 === 0 ? x - 1 : 5 - x), 0) * 2.5;
+const f1 = (n: number) => n.toFixed(1).replace(".", ",");
+const grade = (s: number) => (s >= 80.3 ? "sangat baik" : s >= 68 ? "di atas rata-rata (bisa diterima)" : s >= 51 ? "di bawah rata-rata" : "buruk");
+
+export default function Survey() {
+  const [a, setA] = useState<number[]>(Array(10).fill(0));
+  const [name, setName] = useState("");
+  const [list, setList] = useState<Resp[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) setList(JSON.parse(raw));
+    } catch {}
+  }, []);
+  const save = (l: Resp[]) => {
+    setList(l);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(l));
+    } catch {}
+  };
+  const done = a.every((x) => x > 0);
+  const avg = list.length ? list.reduce((s, r) => s + r.s, 0) / list.length : 0;
+  return (
+    <section className="step" id="kuesioner">
+      <h2><span>4</span>Kuesioner kegunaan (SUS)</h2>
+      <p className="hint">Setelah mencoba sistem, isi 10 pernyataan ini. 1 = sangat tidak setuju, 5 = sangat setuju. Jawaban tersimpan di browser ini saja.</p>
+      <div className="fld" style={{ gridTemplateColumns: "1fr", maxWidth: 360 }}>
+        <label htmlFor="rn">Nama responden (boleh dikosongkan)</label>
+        <input id="rn" type="text" className="txt" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="scroll">
+        <table className="tbl sus">
+          <thead><tr><th>No</th><th>Pernyataan</th>{[1, 2, 3, 4, 5].map((n) => <th key={n}>{n}</th>)}</tr></thead>
+          <tbody>
+            {Q.map((q, i) => (
+              <tr key={i}>
+                <td>{i + 1}</td>
+                <td className="q">{q}</td>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <td key={n}><input type="radio" name={`q${i}`} aria-label={`Pernyataan ${i + 1} nilai ${n}`} checked={a[i] === n} onChange={() => setA(a.map((x, k) => (k === i ? n : x)))} /></td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="presets" style={{ marginTop: 14 }}>
+        <button className="solid" disabled={!done} onClick={() => { save([...list, { name: name.trim() || `Responden ${list.length + 1}`, a, s: sus(a) }]); setA(Array(10).fill(0)); setName(""); }}>Simpan jawaban</button>
+        <span className="hint" style={{ margin: "6px 0 0" }}>{done ? `Skor SUS jawabanmu: ${f1(sus(a))}` : `${a.filter((x) => x > 0).length} dari 10 terjawab`}</span>
+      </div>
+      <h3 style={{ marginTop: 26 }}>Rekap responden ({list.length})</h3>
+      {list.length === 0 ? (
+        <p className="hint">Belum ada jawaban tersimpan.</p>
+      ) : (
+        <>
+          <div className="scroll">
+            <table className="tbl">
+              <thead><tr><th>No</th><th>Nama</th>{Q.map((_, i) => <th key={i}>P{i + 1}</th>)}<th>Skor SUS</th></tr></thead>
+              <tbody>
+                {list.map((r, i) => (
+                  <tr key={i}><td>{i + 1}</td><td>{r.name}</td>{r.a.map((x, k) => <td key={k}>{x}</td>)}<td><b>{f1(r.s)}</b></td></tr>
+                ))}
+                <tr><td></td><td><b>Rata-rata</b></td><td colSpan={10}></td><td><b>{f1(avg)}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="sentence" style={{ fontSize: 20, marginTop: 12 }}>Rata-rata SUS {f1(avg)}: {grade(avg)}.</p>
+          <div className="presets"><button onClick={() => save([])}>Hapus semua jawaban</button></div>
+        </>
+      )}
+    </section>
+  );
+}
+=== D:\spk-web-data-layer\spk-app\lib\ahp.ts ===
+import { ahp } from "./data";
+import type { Segment } from "./types";
+
+const RI = [0, 0, 0.58, 0.9, 1.12, 1.24, 1.32, 1.41, 1.45, 1.49];
+export const CR_LIMIT = 0.1;
+export const SAATY = [9, 8, 7, 6, 5, 4, 3, 2, 1, 1 / 2, 1 / 3, 1 / 4, 1 / 5, 1 / 6, 1 / 7, 1 / 8, 1 / 9];
+export const N = ahp.criteria.length;
+export const PAIRS: [number, number][] = [];
+for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) PAIRS.push([i, j]);
+export const EQUAL = PAIRS.map(() => 1);
+
+export const snap = (v: number) =>
+  SAATY.reduce((b, s) => (Math.abs(Math.log(s / v)) < Math.abs(Math.log(b / v)) ? s : b), SAATY[0]);
+
+export function toMatrix(pairs: number[]): number[][] {
+  const m = Array.from({ length: N }, () => Array<number>(N).fill(1));
+  PAIRS.forEach(([i, j], k) => {
+    m[i][j] = pairs[k];
+    m[j][i] = 1 / pairs[k];
+  });
+  return m;
+}
+
+export function analyze(pairs: number[]) {
+  const m = toMatrix(pairs);
+  let w = Array<number>(N).fill(1 / N);
+  for (let it = 0; it < 200; it++) {
+    const y = m.map((r) => r.reduce((s, a, j) => s + a * w[j], 0));
+    const t = y.reduce((a, b) => a + b, 0);
+    w = y.map((v) => v / t);
+  }
+  const aw = m.map((r) => r.reduce((s, a, j) => s + a * w[j], 0));
+  const lambdaMax = aw.reduce((s, v, i) => s + v / w[i], 0) / N;
+  const ci = Math.max(0, (lambdaMax - N) / (N - 1));
+  const cr = RI[N] ? ci / RI[N] : 0;
+  let worst = 0;
+  let wv = -1;
+  PAIRS.forEach(([i, j], k) => {
+    const e = Math.abs(Math.log(pairs[k] / (w[i] / w[j])));
+    if (e > wv) {
+      wv = e;
+      worst = k;
+    }
+  });
+  const [wi, wj] = PAIRS[worst];
+  return { weights: w, lambdaMax, ci, cr, consistent: cr <= CR_LIMIT, worst: { k: worst, i: wi, j: wj, suggest: snap(w[wi] / w[wj]) } };
+}
+
+export const TEMPLATES = (["Budget", "Mid-range", "Flagship"] as Segment[]).map((s) => ({
+  id: s,
+  pairs: PAIRS.map(([i, j]) => snap((ahp.segments[s] as unknown as { matrix: number[][] }).matrix[i][j])),
+}));
+=== D:\spk-web-data-layer\spk-app\lib\data.ts ===
+import ahpJson from '../data/ahp.json';
+import modelJson from '../data/model.json';
+import phonesJson from '../data/phones.json';
+import rangesJson from '../data/ranges.json';
+import type { AhpData, ModelParams, Phone, RangesData } from './types';
+
+export const modelParams = modelJson as unknown as ModelParams;
+export const ahp = ahpJson as unknown as AhpData;
+export const ranges = rangesJson as unknown as RangesData;
+export const phones = phonesJson as unknown as Phone[];
+=== D:\spk-web-data-layer\spk-app\lib\multi.ts ===
+import { ahp, modelParams, phones } from "./data";
+import { predictSegment } from "./predict";
+import type { Prediction } from "./predict";
+import { normalizeWeights, topsis } from "./topsis";
+import { ranges } from "./data";
+import type { Bounds, PhoneInput, Segment } from "./types";
+
+export interface UserAlt {
+  uid: string;
+  name: string;
+  srcId: number | null;
+  input: PhoneInput;
+}
+
+export interface Row {
+  key: string;
+  uid: string | null;
+  name: string;
+  sub: string;
+  closeness: number;
+  rank: number;
+}
+
+const mm = (v: number, b: Bounds) => (v - b.min) / (b.max - b.min);
+
+function userValues(i: PhoneInput): number[] {
+  const r = ranges.minmaxReference;
+  const n = (x: unknown) => x as number;
+  const c5 = (mm(n(i.ppi), r.ppi) + mm(n(i.refreshRate), r.refreshRate)) / 2;
+  const c6 = (mm(n(i.cpu), r.cpu) + mm(n(i.gpu), r.gpu)) / 2;
+  return [n(i.ram), n(i.storage), n(i.battery), n(i.camera), c5, c6, n(i.price)];
+}
+
+export function predictAlt(a: UserAlt): Prediction {
+  return predictSegment(a.input, modelParams);
+}
+
+export function rankPool(alts: UserAlt[], segment: Segment, weights: number[]): Row[] {
+  const skip = new Set(alts.map((a) => a.srcId).filter((x): x is number => x !== null));
+  const pool = phones.filter((p) => p.segment === segment && p.price !== null && !skip.has(p.id));
+  const rows = [
+    ...pool.map((p) => {
+      const rec = p as unknown as Record<string, number>;
+      return {
+        key: `p${p.id}`,
+        uid: null as string | null,
+        name: `${p.brand} ${p.ram}/${p.storage}`,
+        sub: `${p.battery} mAh, ${p.camera} MP, $${Math.round(p.price as number)}`,
+        v: ahp.criteria.map((c) => rec[c.field]),
+      };
+    }),
+    ...alts.map((a) => ({
+      key: `u${a.uid}`,
+      uid: a.uid as string | null,
+      name: a.name,
+      sub: `${a.input.ram}/${a.input.storage}, ${a.input.battery} mAh, $${a.input.price}`,
+      v: userValues(a.input),
+    })),
+  ];
+  const res = topsis(
+    rows.map((r) => r.v),
+    normalizeWeights(weights),
+    ahp.criteria.map((c) => c.type === "cost"),
+  );
+  return rows
+    .map((r, i) => ({ key: r.key, uid: r.uid, name: r.name, sub: r.sub, closeness: res.closeness[i], rank: 0 }))
+    .sort((a, b) => b.closeness - a.closeness)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+}
+=== D:\spk-web-data-layer\spk-app\lib\predict.ts ===
+import type { FeatureInput, FeatureKey, ModelParams, Segment } from './types';
+
+export const AMBIGUOUS_MARGIN = 0.15;
+
+export interface Prediction {
+  segment: Segment;
+  probabilities: Record<Segment, number>;
+  margin: number;
+  ambiguous: boolean;
+  imputed: FeatureKey[];
+}
+
+export function predictSegment(input: FeatureInput, model: ModelParams): Prediction {
+  const imputed: FeatureKey[] = [];
+  const x = model.features.map((key, i) => {
+    const raw = input[key];
+    if (raw === null || raw === undefined || (typeof raw === 'number' && Number.isNaN(raw))) {
+      imputed.push(key);
+      return model.median[i];
+    }
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+      throw new Error(`Nilai ${key} bukan angka yang valid`);
+    }
+    return raw;
+  });
+
+  const probs = model.classes.map(() => 0);
+  for (const tree of model.forest) {
+    let n = 0;
+    while (tree.l[n] !== -1) n = x[tree.f[n]] <= tree.t[n] ? tree.l[n] : tree.r[n];
+    tree.v[n].forEach((pv, k) => {
+      probs[k] += pv / model.forest.length;
+    });
+  }
+
+  const probabilities = {} as Record<Segment, number>;
+  model.classes.forEach((cls, k) => {
+    probabilities[cls] = probs[k];
+  });
+
+  let best = 0;
+  probs.forEach((p, k) => {
+    if (p > probs[best]) best = k;
+  });
+  const sorted = [...probs].sort((a, b) => b - a);
+  const margin = sorted[0] - sorted[1];
+
+  return {
+    segment: model.classes[best],
+    probabilities,
+    margin,
+    ambiguous: margin < AMBIGUOUS_MARGIN,
+    imputed,
+  };
+}
+=== D:\spk-web-data-layer\spk-app\lib\recommend.ts ===
+import { ahp, modelParams, phones, ranges } from './data';
+import { predictSegment } from './predict';
+import type { Prediction } from './predict';
+import { normalizeWeights, topsis } from './topsis';
+import type { Bounds, Criterion, FeatureKey, Phone, PhoneInput, Segment } from './types';
+import { FEATURE_KEYS } from './types';
+
+const REQUIRED_KEYS = ['ram', 'storage', 'battery', 'camera', 'ppi', 'refreshRate', 'cpu', 'gpu', 'price'] as const;
+const OPTIONAL_KEYS: FeatureKey[] = ['charge', 'frontCamera', 'displaySize'];
+const LABELS: Record<string, string> = { ...modelParams.featureLabels, price: 'Harga (USD)' };
+
+export class InputError extends Error {
+  errors: string[];
+
+  constructor(errors: string[]) {
+    super(errors.join('; '));
+    this.name = 'InputError';
+    this.errors = errors;
+  }
+}
+
+interface Alternative {
+  id: number | null;
+  isInput: boolean;
+  name: string;
+  label: string;
+  values: number[];
+}
+
+export interface RankedItem {
+  id: number | null;
+  isInput: boolean;
+  name: string;
+  label: string;
+  closeness: number;
+  rank: number;
+  dPlus: number;
+  dMinus: number;
+  weighted: number[];
+}
+
+export interface SegmentRanking {
+  segment: Segment;
+  weights: number[];
+  criteria: Criterion[];
+  idealPositive: number[];
+  idealNegative: number[];
+  ranking: RankedItem[];
+}
+
+export interface RecommendResult extends SegmentRanking {
+  probabilities: Prediction['probabilities'];
+  margin: number;
+  ambiguous: boolean;
+  input: RankedItem;
+  alternativeCount: number;
+  warnings: string[];
+}
+
+function isMissing(v: unknown): boolean {
+  return v === null || v === undefined || (typeof v === 'number' && Number.isNaN(v));
+}
+
+function outsideBounds(value: number, b: Bounds): boolean {
+  return value < b.min || value > b.max;
+}
+
+export function validateInput(input: PhoneInput): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const record = input as unknown as Record<string, unknown>;
+
+  for (const key of REQUIRED_KEYS) {
+    const v = record[key];
+    if (isMissing(v)) {
+      errors.push(`${LABELS[key]} wajib diisi`);
+    } else if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+      errors.push(`${LABELS[key]} harus angka lebih dari 0`);
+    }
+  }
+  for (const key of OPTIONAL_KEYS) {
+    const v = record[key];
+    if (isMissing(v)) continue;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+      errors.push(`${LABELS[key]} harus angka lebih dari 0 atau dikosongkan`);
+    }
+  }
+  if (errors.length > 0) return { errors, warnings };
+
+  for (const key of [...FEATURE_KEYS, 'price'] as const) {
+    const v = record[key];
+    if (isMissing(v)) continue;
+    const b = ranges.inputBounds[key];
+    if (outsideBounds(v as number, b)) {
+      warnings.push(`${LABELS[key]} (${v}) di luar rentang dataset (${b.min} sampai ${b.max})`);
+    }
+  }
+  return { errors, warnings };
+}
+
+function minmax(value: number, b: Bounds): number {
+  return (value - b.min) / (b.max - b.min);
+}
+
+function toValues(p: { [K in Criterion['field']]: number }): number[] {
+  return ahp.criteria.map((c) => p[c.field]);
+}
+
+function datasetAlternatives(segment: Segment): Alternative[] {
+  return phones
+    .filter((p) => p.segment === segment && p.price !== null)
+    .map((p) => ({
+      id: p.id,
+      isInput: false,
+      name: p.name,
+      label: p.label,
+      values: toValues(p as unknown as { [K in Criterion['field']]: number }),
+    }));
+}
+
+function rankAlternatives(alts: Alternative[], weights: number[]) {
+  const isCost = ahp.criteria.map((c) => c.type === 'cost');
+  const res = topsis(
+    alts.map((a) => a.values),
+    weights,
+    isCost,
+  );
+  const ranking: RankedItem[] = alts.map((a, i) => ({
+    id: a.id,
+    isInput: a.isInput,
+    name: a.name,
+    label: a.label,
+    closeness: res.closeness[i],
+    rank: res.rank[i],
+    dPlus: res.dPlus[i],
+    dMinus: res.dMinus[i],
+    weighted: res.weighted[i],
+  }));
+  ranking.sort(
+    (a, b) =>
+      b.closeness - a.closeness || Number(a.isInput) - Number(b.isInput) || (a.id ?? 0) - (b.id ?? 0),
+  );
+  return { ranking, idealPositive: res.idealPositive, idealNegative: res.idealNegative };
+}
+
+function resolveWeights(segment: Segment, custom?: number[]): number[] {
+  if (!custom) return ahp.segments[segment].weights;
+  if (custom.length !== ahp.criteria.length) {
+    throw new InputError([`Bobot harus berjumlah ${ahp.criteria.length}`]);
+  }
+  return normalizeWeights(custom);
+}
+
+export function rankSegment(segment: Segment, customWeights?: number[]): SegmentRanking {
+  const weights = resolveWeights(segment, customWeights);
+  const { ranking, idealPositive, idealNegative } = rankAlternatives(datasetAlternatives(segment), weights);
+  return { segment, weights, criteria: ahp.criteria, idealPositive, idealNegative, ranking };
+}
+
+export function recommend(input: PhoneInput, options: { weights?: number[] } = {}): RecommendResult {
+  const { errors, warnings } = validateInput(input);
+  if (errors.length > 0) throw new InputError(errors);
+
+  const prediction = predictSegment(input, modelParams);
+  const segment = prediction.segment;
+  const weights = resolveWeights(segment, options.weights);
+
+  const c5 = (minmax(input.ppi as number, ranges.minmaxReference.ppi) +
+    minmax(input.refreshRate as number, ranges.minmaxReference.refreshRate)) / 2;
+  const c6 = (minmax(input.cpu as number, ranges.minmaxReference.cpu) +
+    minmax(input.gpu as number, ranges.minmaxReference.gpu)) / 2;
+
+  const newAlt: Alternative = {
+    id: null,
+    isInput: true,
+    name: 'Ponsel input',
+    label: 'Ponsel input',
+    values: toValues({
+      ram: input.ram as number,
+      storage: input.storage as number,
+      battery: input.battery as number,
+      camera: input.camera as number,
+      c5,
+      c6,
+      price: input.price,
+    }),
+  };
+
+  const alts = [...datasetAlternatives(segment), newAlt];
+  const { ranking, idealPositive, idealNegative } = rankAlternatives(alts, weights);
+  const inputItem = ranking.find((r) => r.isInput) as RankedItem;
+
+  const allWarnings = [...warnings];
+  prediction.imputed.forEach((key) => {
+    const i = modelParams.features.indexOf(key);
+    allWarnings.push(`${LABELS[key]} kosong, diisi median data latih (${modelParams.median[i]})`);
+  });
+  if (prediction.ambiguous) {
+    allWarnings.push('Probabilitas segmen tipis, ponsel ini berada di wilayah tumpang tindih antarsegmen');
+  }
+
+  return {
+    segment,
+    weights,
+    criteria: ahp.criteria,
+    idealPositive,
+    idealNegative,
+    ranking,
+    probabilities: prediction.probabilities,
+    margin: prediction.margin,
+    ambiguous: prediction.ambiguous,
+    input: inputItem,
+    alternativeCount: alts.length,
+    warnings: allWarnings,
+  };
+}
+
+export function getPhone(id: number): Phone {
+  const phone = phones.find((p) => p.id === id);
+  if (!phone) throw new InputError([`Ponsel dengan id ${id} tidak ditemukan`]);
+  return phone;
+}
+
+export interface ComparisonItem {
+  phone: Phone;
+  ranked: boolean;
+  rank: number | null;
+  closeness: number | null;
+  segmentSize: number | null;
+}
+
+export function comparePhones(ids: number[]): {
+  comparable: boolean;
+  segments: Segment[];
+  items: ComparisonItem[];
+} {
+  const unique = [...new Set(ids)];
+  if (unique.length < 2 || unique.length > 3) {
+    throw new InputError(['Pilih 2 sampai 3 ponsel yang berbeda']);
+  }
+  const selected = unique.map(getPhone);
+  const segments = [...new Set(selected.map((p) => p.segment))];
+  const rankings = new Map<Segment, SegmentRanking>(segments.map((s) => [s, rankSegment(s)]));
+
+  const items = selected.map((phone) => {
+    const ranking = rankings.get(phone.segment) as SegmentRanking;
+    const entry = ranking.ranking.find((r) => r.id === phone.id);
+    return {
+      phone,
+      ranked: entry !== undefined,
+      rank: entry ? entry.rank : null,
+      closeness: entry ? entry.closeness : null,
+      segmentSize: entry ? ranking.ranking.length : null,
+    };
+  });
+
+  return { comparable: segments.length === 1, segments, items };
+}
+=== D:\spk-web-data-layer\spk-app\lib\topsis.ts ===
+export interface TopsisResult {
+  weighted: number[][];
+  idealPositive: number[];
+  idealNegative: number[];
+  dPlus: number[];
+  dMinus: number[];
+  closeness: number[];
+  rank: number[];
+}
+
+export function normalizeWeights(weights: number[]): number[] {
+  if (weights.some((w) => !Number.isFinite(w) || w < 0)) {
+    throw new Error('Bobot harus angka tidak negatif');
+  }
+  const total = weights.reduce((s, w) => s + w, 0);
+  if (total <= 0) throw new Error('Total bobot harus lebih dari nol');
+  return weights.map((w) => w / total);
+}
+
+export function topsis(matrix: number[][], weights: number[], isCost: boolean[]): TopsisResult {
+  const m = matrix.length;
+  const n = weights.length;
+  if (m === 0) throw new Error('Alternatif kosong');
+  if (matrix.some((row) => row.length !== n) || isCost.length !== n) {
+    throw new Error('Dimensi matriks, bobot, dan jenis kriteria tidak sama');
+  }
+
+  const norms = Array.from({ length: n }, (_, j) =>
+    Math.sqrt(matrix.reduce((s, row) => s + row[j] * row[j], 0)),
+  );
+  const weighted = matrix.map((row) => row.map((v, j) => (norms[j] === 0 ? 0 : v / norms[j]) * weights[j]));
+
+  const idealPositive = Array.from({ length: n }, (_, j) => {
+    const col = weighted.map((r) => r[j]);
+    return isCost[j] ? Math.min(...col) : Math.max(...col);
+  });
+  const idealNegative = Array.from({ length: n }, (_, j) => {
+    const col = weighted.map((r) => r[j]);
+    return isCost[j] ? Math.max(...col) : Math.min(...col);
+  });
+
+  const dist = (row: number[], ideal: number[]) =>
+    Math.sqrt(row.reduce((s, v, j) => s + (v - ideal[j]) ** 2, 0));
+  const dPlus = weighted.map((r) => dist(r, idealPositive));
+  const dMinus = weighted.map((r) => dist(r, idealNegative));
+  const closeness = dPlus.map((dp, i) => (dp + dMinus[i] === 0 ? 0 : dMinus[i] / (dp + dMinus[i])));
+  const rank = closeness.map((v) => 1 + closeness.filter((o) => o > v).length);
+
+  return { weighted, idealPositive, idealNegative, dPlus, dMinus, closeness, rank };
+}
+=== D:\spk-web-data-layer\spk-app\lib\types.ts ===
+export const SEGMENTS = ['Budget', 'Mid-range', 'Flagship'] as const;
+export type Segment = (typeof SEGMENTS)[number];
+
+export const FEATURE_KEYS = [
+  'ram',
+  'storage',
+  'battery',
+  'charge',
+  'camera',
+  'frontCamera',
+  'displaySize',
+  'ppi',
+  'refreshRate',
+  'cpu',
+  'gpu',
+] as const;
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
+
+export type FeatureInput = Partial<Record<FeatureKey, number | null>>;
+export type PhoneInput = FeatureInput & { price: number };
+
+export interface ForestTree {
+  f: number[];
+  t: number[];
+  l: number[];
+  r: number[];
+  v: number[][];
+}
+
+export interface ModelParams {
+  meta: Record<string, unknown>;
+  classes: Segment[];
+  features: FeatureKey[];
+  featureLabels: Record<string, string>;
+  median: number[];
+  forest: ForestTree[];
+}
+
+export interface Criterion {
+  code: string;
+  field: 'ram' | 'storage' | 'battery' | 'camera' | 'c5' | 'c6' | 'price';
+  name: string;
+  unit: string;
+  type: 'benefit' | 'cost';
+}
+
+export interface AhpSegment {
+  matrix: number[][];
+  weights: number[];
+  lambdaMax: number;
+  ci: number;
+  cr: number;
+  consistent: boolean;
+}
+
+export interface AhpData {
+  source: string;
+  randomIndex: number;
+  criteria: Criterion[];
+  segments: Record<Segment, AhpSegment>;
+  single: { weights: number[]; definition: string };
+}
+
+export interface Bounds {
+  min: number;
+  max: number;
+}
+
+export interface RangesData {
+  minmaxReference: { basis: string; ppi: Bounds; refreshRate: Bounds; cpu: Bounds; gpu: Bounds };
+  inputBounds: Record<FeatureKey | 'price', Bounds>;
+}
+
+export interface Phone {
+  id: number;
+  brand: string;
+  name: string;
+  label: string;
+  segment: Segment;
+  ram: number;
+  storage: number;
+  battery: number;
+  charge: number | null;
+  camera: number;
+  frontCamera: number;
+  displaySize: number;
+  ppi: number;
+  refreshRate: number;
+  cpu: number;
+  gpu: number;
+  price: number | null;
+  c5: number;
+  c6: number;
+  displayType: string;
+  weight: number;
+  fiveG: boolean | null;
+  wirelessCharging: boolean;
+  split: 'train' | 'test';
+}
+=== D:\spk-web-data-layer\spk-app\next-env.d.ts ===
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+import "./.next/dev/types/root-params.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+=== D:\spk-web-data-layer\spk-app\next.config.ts ===
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+  experimental: {
+    agentFeedback: true,
+  },
+  cacheComponents: true,
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+};
+
+export default nextConfig;
+=== D:\spk-web-data-layer\spk-app\package.json ===
+{
+  "name": "spk-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  }
+}
