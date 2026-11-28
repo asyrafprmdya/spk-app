@@ -6,6 +6,7 @@ import { ahp, phones } from "@/lib/data";
 import { analyze, CR_LIMIT, EQUAL, PAIRS, SAATY, TEMPLATES } from "@/lib/ahp";
 import { predictAlt, rankPool } from "@/lib/multi";
 import type { UserAlt } from "@/lib/multi";
+import type { Prediction } from "@/lib/predict";
 import { validateInput } from "@/lib/recommend";
 import type { PhoneInput, Segment } from "@/lib/types";
 
@@ -28,17 +29,31 @@ type Vals = Record<string, string>;
 const SEGS: Segment[] = ["Budget", "Mid-range", "Flagship"];
 const COLOR: Record<Segment, string> = { Budget: "var(--budget)", "Mid-range": "var(--mid)", Flagship: "var(--flag)" };
 const LET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const COLS = ["nama", ...FIELDS.map((x) => x.k)];
+
+const MODEL_STEPS = [
+  { text: "Menyiapkan vektor fitur & imputasi median...", pct: 32 },
+  { text: "Menjalankan 150 pohon keputusan Random Forest...", pct: 74 },
+  { text: "Menghitung peringkat TOPSIS dengan bobot Saaty...", pct: 100 },
+];
+
+const DIRECT_STEPS = [
+  { text: "Menormalisasi matriks keputusan & bobot AHP...", pct: 48 },
+  { text: "Menghitung jarak solusi ideal & skor TOPSIS...", pct: 100 },
+];
+
 const blank = (): Vals => Object.fromEntries(FIELDS.map((f) => [f.k, ""]));
 const f = (n: number, d = 2) => n.toFixed(d).replace(".", ",");
 const pct = (n: number, d = 0) => f(n * 100, d) + "%";
 const toInput = (v: Vals) => Object.fromEntries(FIELDS.map((fl) => [fl.k, v[fl.k].trim() === "" ? null : Number(v[fl.k])])) as unknown as PhoneInput;
 const goto = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
-const PRED_STEPS = [
-  { text: "Menyiapkan vektor fitur & imputasi median...", pct: 32 },
-  { text: "Menjalankan 150 pohon keputusan Random Forest...", pct: 74 },
-  { text: "Menghitung bobot AHP & peringkat TOPSIS...", pct: 100 },
-];
+const saatyLabel = (v: number, a: string, b: string) => {
+  if (v === 1) return "1 — Sama penting";
+  if (v > 1) return `${v} — ${a} ${v}× lebih penting`;
+  const inv = Math.round(1 / v);
+  return `1/${inv} — ${b} ${inv}× lebih penting`;
+};
 
 function fromPhone(p: (typeof phones)[number], name: string): UserAlt {
   const rec = p as unknown as Record<string, number | null>;
@@ -59,8 +74,6 @@ function templateAlts(): UserAlt[] {
   return out;
 }
 
-const COLS = ["nama", ...FIELDS.map((x) => x.k)];
-
 function downloadTemplate() {
   const ex = [
     ["Contoh A", 8, 256, 5000, 64, 395, 120, 250000, 300000, 320, 45, 16, 6.7],
@@ -73,21 +86,159 @@ function downloadTemplate() {
   a.click();
 }
 
+type BobotProps = {
+  seg: Segment;
+  customPairs: number[] | null;
+  weights: number[];
+  analysis: ReturnType<typeof analyze> | null;
+  onChangePairs: (next: number[] | null) => void;
+};
+
+function BobotSection({ seg, customPairs, weights, analysis, onChangePairs }: BobotProps) {
+  const crit = ahp.criteria;
+  const [focusCrit, setFocusCrit] = useState<number>(6);
+
+  const openMatrix = () => {
+    const preset = TEMPLATES.find((t) => t.id === seg)?.pairs ?? EQUAL;
+    onChangePairs([...preset]);
+  };
+
+  const updatePair = (index: number, value: number) => {
+    const base = customPairs ?? EQUAL;
+    onChangePairs(base.map((x, i) => (i === index ? value : x)));
+  };
+
+  const visiblePairs = PAIRS.map((pair, k) => ({ pair, k })).filter(
+    ({ pair }) => focusCrit === -1 || pair[0] === focusCrit || pair[1] === focusCrit,
+  );
+
+  return (
+    <section className="step" id="bobot">
+      <h2><span>2</span>Bobot kriteria</h2>
+      <p className="hint">Tentukan bobot kriteria lewat matriks perbandingan prioritas Saaty (skala 1 sampai 9) sebelum menjalankan prediksi dan pemeringkatan.</p>
+
+      <div className="presets">
+        <button aria-pressed={Boolean(customPairs)} onClick={openMatrix}>Matriks Saaty (1–9)</button>
+        <button aria-pressed={!customPairs} onClick={() => onChangePairs(null)}>Otomatis ({seg})</button>
+      </div>
+
+      <div className="cols">
+        <div>
+          {customPairs ? (
+            <>
+              <div className="presets" style={{ marginBottom: 10 }}>
+                {crit.map((c, idx) => (
+                  <button key={c.code} aria-pressed={focusCrit === idx} onClick={() => setFocusCrit(idx)}>
+                    {c.name}
+                  </button>
+                ))}
+                <button aria-pressed={focusCrit === -1} onClick={() => setFocusCrit(-1)}>
+                  Semua ({PAIRS.length})
+                </button>
+              </div>
+
+              <div className="pairs">
+                {visiblePairs.map(({ pair: [i, j], k }) => (
+                  <div className="pr" key={k}>
+                    <label htmlFor={`pr${k}`}>{crit[i].name} <small>vs</small> {crit[j].name}</label>
+                    <select
+                      id={`pr${k}`}
+                      value={Math.max(0, SAATY.indexOf(customPairs[k]))}
+                      onChange={(e) => updatePair(k, SAATY[Number(e.target.value)])}
+                    >
+                      {SAATY.map((s, x) => (
+                        <option key={x} value={x}>{saatyLabel(s, crit[i].name, crit[j].name)}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+
+              <div className="presets" style={{ marginTop: 12 }}>
+                {TEMPLATES.map((t) => (
+                  <button key={t.id} onClick={() => onChangePairs([...t.pairs])}>Preset {t.id}</button>
+                ))}
+                <button onClick={() => onChangePairs([...EQUAL])}>Reset 1:1</button>
+              </div>
+            </>
+          ) : (
+            <p className="hint">
+              Menggunakan bobot matriks Saaty bawaan segmen <b>{seg}</b>. Klik <b>Matriks Saaty (1–9)</b> untuk mengatur perbandingan prioritas sendiri.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <h3>Bobot hasil</h3>
+          {crit.map((c, j) => (
+            <div className="wb" key={c.code}>
+              <span>{c.name}{c.type === "cost" ? " (cost)" : ""}</span>
+              <span className="wt"><i style={{ width: `${(weights[j] / 0.6) * 100}%` }} /></span>
+              <b>{pct(weights[j])}</b>
+            </div>
+          ))}
+
+          {analysis ? (
+            <div className={analysis.consistent ? "cons ok" : "cons bad"} role="status">
+              <b>{analysis.consistent ? "Konsisten" : "Belum konsisten"}: CR = {f(analysis.cr, 3)}</b>
+              <span>λmax {f(analysis.lambdaMax, 3)}, CI {f(analysis.ci, 3)}, RI 1,32, batas CR {f(CR_LIMIT, 1)}</span>
+              {!analysis.consistent && (
+                <span>
+                  Paling bertentangan: {crit[analysis.worst.i].name} vs {crit[analysis.worst.j].name}. Saran: {saatyLabel(analysis.worst.suggest, crit[analysis.worst.i].name, crit[analysis.worst.j].name)}.{" "}
+                  <button
+                    className="lnk"
+                    onClick={() => {
+                      updatePair(analysis.worst.k, analysis.worst.suggest);
+                      if (focusCrit !== -1) setFocusCrit(analysis.worst.i);
+                    }}
+                  >
+                    Terapkan saran
+                  </button>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="cons ok">
+              <b>Bobot literatur: CR = {f(ahp.segments[seg].cr, 3)}</b>
+              <span>Sudah lolos uji konsistensi.</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const cnt = useRef(0);
   const timers = useRef<number[]>([]);
-  const [alts, setAlts] = useState<UserAlt[]>(templateAlts);
+  const initialAlts = useRef<UserAlt[]>(templateAlts());
+
+  const [alts, setAlts] = useState<UserAlt[]>(() => initialAlts.current);
   const [form, setForm] = useState<{ name: string; vals: Vals; srcId: number | null }>({ name: "", vals: blank(), srcId: null });
   const [formErr, setFormErr] = useState<string[]>([]);
   const [brand, setBrand] = useState("");
-  const [wmode, setWmode] = useState<"auto" | "custom">("auto");
-  const [pairs, setPairs] = useState<number[]>(EQUAL);
-  const [segMode, setSegMode] = useState<"auto" | Segment>("auto");
+  const [customPairs, setCustomPairs] = useState<number[] | null>(() => [...(TEMPLATES.find((t) => t.id === "Mid-range")?.pairs ?? EQUAL)]);
   const [note, setNote] = useState("");
-  const [predicting, setPredicting] = useState<{ active: boolean; step: number; title: string }>({
+
+  // Pilihan pengguna: prediksi kelas pakai model Random Forest atau tidak
+  const [useModel, setUseModel] = useState<boolean>(true);
+  const [manualSeg, setManualSeg] = useState<Segment>("Mid-range");
+  const [segOverride, setSegOverride] = useState<"auto" | Segment>("auto");
+
+  // Snapshot hasil eksekusi setelah langkah 1 & 2 selesai
+  const [hasProcessed, setHasProcessed] = useState<boolean>(true);
+  const [processedWithModel, setProcessedWithModel] = useState<boolean>(true);
+  const [predMap, setPredMap] = useState<Record<string, Prediction>>(() =>
+    Object.fromEntries(initialAlts.current.map((a) => [a.uid, predictAlt(a)])),
+  );
+  const [dirty, setDirty] = useState<boolean>(false);
+
+  const [loading, setLoading] = useState<{ active: boolean; step: number; title: string; withModel: boolean }>({
     active: false,
     step: 0,
     title: "",
+    withModel: true,
   });
 
   const clearTimers = () => {
@@ -97,33 +248,55 @@ export default function Dashboard() {
 
   useEffect(() => clearTimers, []);
 
-  const runWithPrediction = (title: string, applyData: () => void) => {
+  const executePipeline = (targetAlts: UserAlt[], withModel: boolean, title: string, after?: () => void) => {
+    if (targetAlts.length === 0) return;
     clearTimers();
-    setPredicting({ active: true, step: 0, title });
 
-    const t1 = window.setTimeout(() => {
-      setPredicting({ active: true, step: 1, title });
-    }, 450);
-
-    const t2 = window.setTimeout(() => {
-      setPredicting({ active: true, step: 2, title });
-    }, 950);
-
-    const t3 = window.setTimeout(() => {
-      applyData();
-      setPredicting({ active: false, step: 0, title: "" });
-      goto("hasil");
-    }, 1450);
-
-    timers.current = [t1, t2, t3];
+    if (withModel) {
+      setLoading({ active: true, step: 0, title, withModel: true });
+      timers.current = [
+        window.setTimeout(() => setLoading({ active: true, step: 1, title, withModel: true }), 450),
+        window.setTimeout(() => setLoading({ active: true, step: 2, title, withModel: true }), 950),
+        window.setTimeout(() => {
+          const nextMap: Record<string, Prediction> = {};
+          targetAlts.forEach((a) => {
+            nextMap[a.uid] = predictAlt(a);
+          });
+          setPredMap(nextMap);
+          setProcessedWithModel(true);
+          setHasProcessed(true);
+          setDirty(false);
+          setSegOverride("auto");
+          after?.();
+          setLoading({ active: false, step: 0, title: "", withModel: true });
+          goto("hasil");
+        }, 1450),
+      ];
+    } else {
+      setLoading({ active: true, step: 0, title, withModel: false });
+      timers.current = [
+        window.setTimeout(() => setLoading({ active: true, step: 1, title, withModel: false }), 400),
+        window.setTimeout(() => {
+          setProcessedWithModel(false);
+          setHasProcessed(true);
+          setDirty(false);
+          after?.();
+          setLoading({ active: false, step: 0, title: "", withModel: false });
+          goto("hasil");
+        }, 850),
+      ];
+    }
   };
 
   const brands = Array.from(new Set(phones.map((p) => p.brand))).sort();
-  const preds = alts.map(predictAlt);
-  const seg: Segment = segMode === "auto" ? (preds[0]?.segment ?? "Mid-range") : segMode;
-  const an = analyze(pairs);
-  const w = wmode === "auto" ? ahp.segments[seg].weights : an.weights;
-  const rows = alts.length ? rankPool(alts, seg, w) : [];
+  const firstPredSeg = alts.length > 0 ? predMap[alts[0].uid]?.segment : undefined;
+  const activeSeg: Segment = processedWithModel
+    ? (segOverride === "auto" ? (firstPredSeg ?? manualSeg) : segOverride)
+    : manualSeg;
+
+  const analysis = customPairs ? analyze(customPairs) : null;
+  const weights = analysis ? analysis.weights : ahp.segments[activeSeg].weights;
+  const rows = hasProcessed && alts.length > 0 ? rankPool(alts, activeSeg, weights) : [];
   const top = rows.slice(0, 10);
   const mine = rows.filter((r) => r.uid && r.rank > 10);
   const topIds = top.filter((r) => r.key.startsWith("p")).map((r) => Number(r.key.slice(1)));
@@ -134,19 +307,35 @@ export default function Dashboard() {
     const v = validateInput(input);
     if (v.errors.length) return v.errors;
     setAlts((a) => [...a, { uid: `u${++cnt.current}`, name: name.trim() || `Alternatif ${a.length + 1}`, srcId, input }]);
+    if (hasProcessed) setDirty(true);
     return [];
   };
-  const setPair = (k: number, v: number) => {
-    setPairs((p) => p.map((x, i) => (i === k ? v : x)));
-    setWmode("custom");
+
+  const removeAlt = (uid: string) => {
+    setAlts((l) => {
+      const next = l.filter((y) => y.uid !== uid);
+      if (next.length === 0) {
+        setHasProcessed(false);
+        setDirty(false);
+      } else if (hasProcessed) {
+        setDirty(true);
+      }
+      return next;
+    });
   };
+
   const pickPhone = (id: number) => {
     const p = phones.find((x) => x.id === id);
     if (!p) return;
     const rec = p as unknown as Record<string, number | null>;
-    setForm({ name: `${p.brand} ${p.ram}/${p.storage}`, srcId: p.id, vals: Object.fromEntries(FIELDS.map((fl) => [fl.k, rec[fl.k] === null || rec[fl.k] === undefined ? "" : String(rec[fl.k])])) });
+    setForm({
+      name: `${p.brand} ${p.ram}/${p.storage}`,
+      srcId: p.id,
+      vals: Object.fromEntries(FIELDS.map((fl) => [fl.k, rec[fl.k] == null ? "" : String(rec[fl.k])])),
+    });
     setFormErr([]);
   };
+
   const upload = (file: File | undefined) => {
     if (!file) return;
     file.text().then((t) => {
@@ -171,36 +360,52 @@ export default function Dashboard() {
       });
       const msg = `${ok} alternatif dari CSV ditambahkan.${bad.length ? ` Dilewati karena tidak valid: ${bad.join(", ")}.` : ""}`;
       if (next.length > 0) {
-        runWithPrediction(`Memprediksi ${next.length} kandidat dari CSV`, () => {
-          setAlts((a) => [...a, ...next]);
-          setNote(msg);
-        });
-      } else {
-        setNote(msg);
+        setAlts((a) => [...a, ...next]);
+        if (hasProcessed) setDirty(true);
       }
+      setNote(msg);
     });
   };
+
   const startTemplate = () => {
-    runWithPrediction("Memprediksi 3 kandidat template", () => {
-      setAlts(templateAlts());
-      setWmode("auto");
-      setSegMode("auto");
-      setNote("");
-    });
+    const tpl = templateAlts();
+    const midPreset = TEMPLATES.find((t) => t.id === "Mid-range")?.pairs ?? EQUAL;
+    setAlts(tpl);
+    setCustomPairs([...midPreset]);
+    setUseModel(true);
+    setNote("");
+    executePipeline(tpl, true, "Memprediksi 3 kandidat template");
   };
+
   const startManual = () => {
     setAlts([]);
     setForm({ name: "", vals: blank(), srcId: null });
-    setPairs(EQUAL);
-    setWmode("custom");
-    setSegMode("auto");
+    setFormErr([]);
+    setCustomPairs([...EQUAL]);
+    setPredMap({});
+    setHasProcessed(false);
+    setDirty(false);
     setNote("");
     goto("alternatif");
   };
-  const lbl = (v: number, a: string, b: string) => (v === 1 ? "Sama penting" : v > 1 ? `${a} ${v}x lebih penting` : `${b} ${Math.round(1 / v)}x lebih penting`);
-  const crit = ahp.criteria;
-  const mism = alts.map((a, i) => ({ a, i })).filter(({ i }) => preds[i].segment !== seg);
-  const currentStep = PRED_STEPS[predicting.step] ?? PRED_STEPS[0];
+
+  const handleRunStep = () => {
+    if (alts.length === 0) {
+      goto("alternatif");
+      return;
+    }
+    const title = useModel
+      ? `Memprediksi kelas ${alts.length} alternatif`
+      : `Menghitung peringkat ${alts.length} alternatif`;
+    executePipeline(alts, useModel, title);
+  };
+
+  const mism = processedWithModel
+    ? alts.map((a, i) => ({ a, i, p: predMap[a.uid] })).filter(({ p }) => p && p.segment !== activeSeg)
+    : [];
+
+  const stepsList = loading.withModel ? MODEL_STEPS : DIRECT_STEPS;
+  const currentStep = stepsList[loading.step] ?? stepsList[0];
 
   return (
     <>
@@ -286,40 +491,42 @@ export default function Dashboard() {
         }
       `}</style>
 
-      {predicting.active && (
+      {loading.active && (
         <div className="pred-overlay" role="status" aria-live="polite">
           <div className="pred-card">
             <div className="pred-head">
               <span className="pred-spinner" aria-hidden="true" />
-              <h3 className="pred-title">{predicting.title}</h3>
+              <h3 className="pred-title">{loading.title}</h3>
             </div>
             <p className="pred-step">{currentStep.text}</p>
             <div className="pred-track">
               <div className="pred-fill" style={{ width: `${currentStep.pct}%` }} />
             </div>
-            <div className="pred-segs">
-              <span className="pred-dot" style={{ background: "var(--budget)", animationDelay: "0s" }} />
-              <span>Budget</span>
-              <span className="pred-dot" style={{ background: "var(--mid)", animationDelay: "0.2s" }} />
-              <span>Mid-range</span>
-              <span className="pred-dot" style={{ background: "var(--flag)", animationDelay: "0.4s" }} />
-              <span>Flagship</span>
-            </div>
+            {loading.withModel && (
+              <div className="pred-segs">
+                <span className="pred-dot" style={{ background: "var(--budget)", animationDelay: "0s" }} />
+                <span>Budget</span>
+                <span className="pred-dot" style={{ background: "var(--mid)", animationDelay: "0.2s" }} />
+                <span>Mid-range</span>
+                <span className="pred-dot" style={{ background: "var(--flag)", animationDelay: "0.4s" }} />
+                <span>Flagship</span>
+              </div>
+            )}
           </div>
         </div>
       )}
 
       <section className="start" id="mulai">
         <h2>Mulai dari mana?</h2>
-        <p className="hint">Tiga langkah: isi alternatif ponsel, tentukan bobot kriteria lewat matriks perbandingan, lalu baca peringkatnya.</p>
+        <p className="hint">Alur: (1) masukkan alternatif ponsel, (2) tentukan bobot matriks Saaty, lalu (3) pilih apakah kelas diprediksi model sebelum melihat peringkat.</p>
         <div className="btnrow">
-          <button className="big" disabled={predicting.active} onClick={startTemplate}>
-            {predicting.active ? "Memprediksi segmen..." : "Pakai template"}
-            <small>3 kandidat Mid-range dan bobot AHP segmen, langsung ada hasil</small>
+          <button className="big" disabled={loading.active} onClick={startTemplate}>
+            {loading.active ? "Memproses..." : "Pakai template"}
+            <small>3 kandidat contoh dan matriks Saaty siap pakai, langsung diprediksi</small>
           </button>
-          <button className="big" disabled={predicting.active} onClick={startManual}>
+          <button className="big" disabled={loading.active} onClick={startManual}>
             Isi sendiri
-            <small>Daftar alternatif kosong, matriks bobot mulai dari sama penting</small>
+            <small>Masukkan alternatif manual, atur matriks Saaty, lalu jalankan prediksi</small>
           </button>
         </div>
       </section>
@@ -331,15 +538,28 @@ export default function Dashboard() {
             <h3>Daftar alternatif ({alts.length})</h3>
             {alts.length === 0 && <p className="hint">Belum ada. Tambahkan lewat formulir, pilih dari dataset, atau unggah CSV.</p>}
             <ul className="alts">
-              {alts.map((a, i) => (
-                <li key={a.uid}>
-                  <span className="badge">{LET[i]}</span>
-                  <span className="an"><b>{a.name}</b><small>{a.input.ram}/{a.input.storage}, {a.input.battery} mAh, ${a.input.price}</small></span>
-                  <span className="chipseg" style={{ background: COLOR[preds[i].segment] }}>{preds[i].segment} {pct(preds[i].probabilities[preds[i].segment])}</span>
-                  <button className="x" aria-label={`Hapus ${a.name}`} onClick={() => setAlts((l) => l.filter((y) => y.uid !== a.uid))}>Hapus</button>
-                </li>
-              ))}
+              {alts.map((a, i) => {
+                const pr = predMap[a.uid];
+                return (
+                  <li key={a.uid}>
+                    <span className="badge">{LET[i]}</span>
+                    <span className="an"><b>{a.name}</b><small>{a.input.ram}/{a.input.storage}, {a.input.battery} mAh, ${a.input.price}</small></span>
+                    {hasProcessed && processedWithModel && pr && !dirty ? (
+                      <span className="chipseg" style={{ background: COLOR[pr.segment] }}>{pr.segment} {pct(pr.probabilities[pr.segment])}</span>
+                    ) : (
+                      <span className="hint" style={{ margin: 0, fontSize: "0.8rem" }}>Belum diprediksi</span>
+                    )}
+                    <button className="x" aria-label={`Hapus ${a.name}`} onClick={() => removeAlt(a.uid)}>Hapus</button>
+                  </li>
+                );
+              })}
             </ul>
+            {alts.length > 0 && (
+              <div className="presets" style={{ marginTop: 12 }}>
+                <button className="solid" onClick={() => goto("bobot")}>Lanjut ke Bobot Kriteria →</button>
+              </div>
+            )}
+
             <h3 style={{ marginTop: 22 }}>Template alternatif</h3>
             <p className="hint">Unduh CSV, isi di Excel atau Sheets, lalu unggah lagi. Nama kolom jangan diubah.</p>
             <div className="presets">
@@ -381,84 +601,126 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="step" id="bobot">
-        <h2><span>2</span>Bobot kriteria</h2>
-        <p className="hint">Bandingkan tingkat kepentingan tiap pasang kriteria dengan skala 1 sampai 9 (matriks prioritas AHP). Sistem menghitung bobotnya dan menguji konsistensi jawabanmu.</p>
+      <BobotSection
+        seg={activeSeg}
+        customPairs={customPairs}
+        weights={weights}
+        analysis={analysis}
+        onChangePairs={(next) => {
+          setCustomPairs(next);
+          if (hasProcessed) setDirty(true);
+        }}
+      />
+
+      <section className="step" id="prediksi">
+        <h2><span>3</span>Prediksi kelas & proses</h2>
+        <p className="hint">Setelah data alternatif dan bobot kriteria terisi, tentukan apakah ingin memprediksi kelas segmen menggunakan model Random Forest atau langsung menghitung peringkat TOPSIS.</p>
+
         <div className="presets">
-          <button aria-pressed={wmode === "auto"} onClick={() => setWmode("auto")}>Otomatis (AHP segmen {seg})</button>
-          {TEMPLATES.map((t) => <button key={t.id} onClick={() => { setPairs(t.pairs); setWmode("custom"); }}>Template {t.id}</button>)}
-          <button onClick={() => { setPairs(EQUAL); setWmode("custom"); }}>Isi sendiri dari nol</button>
+          <button aria-pressed={useModel} onClick={() => setUseModel(true)}>
+            Prediksi kelas dengan model (Random Forest)
+          </button>
+          <button aria-pressed={!useModel} onClick={() => setUseModel(false)}>
+            Tanpa prediksi model (pilih segmen manual)
+          </button>
         </div>
-        <div className="cols">
-          <div>
-            {wmode === "custom" ? (
-              <div className="pairs">
-                {PAIRS.map(([i, j], k) => (
-                  <div className="pr" key={k}>
-                    <label htmlFor={`pr${k}`}>{crit[i].name} <small>vs</small> {crit[j].name}</label>
-                    <select id={`pr${k}`} value={SAATY.indexOf(pairs[k])} onChange={(e) => setPair(k, SAATY[Number(e.target.value)])}>
-                      {SAATY.map((s, x) => <option key={x} value={x}>{lbl(s, crit[i].name, crit[j].name)}</option>)}
-                    </select>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="hint">Mode otomatis memakai bobot AHP yang sudah disusun untuk segmen {seg}. Pilih template atau isi sendiri untuk menyusun matriksmu.</p>
-            )}
-          </div>
-          <div>
-            <h3>Bobot hasil</h3>
-            {crit.map((c, j) => (
-              <div className="wb" key={c.code}>
-                <span>{c.name}{c.type === "cost" ? " (cost)" : ""}</span>
-                <span className="wt"><i style={{ width: `${(w[j] / 0.6) * 100}%` }} /></span>
-                <b>{pct(w[j])}</b>
-              </div>
+
+        {!useModel && (
+          <div className="presets" style={{ marginTop: 10 }}>
+            <span className="hint" style={{ margin: "6px 6px 0 0" }}>Segmen pembanding manual:</span>
+            {SEGS.map((s) => (
+              <button key={s} aria-pressed={manualSeg === s} onClick={() => setManualSeg(s)}>
+                {s}
+              </button>
             ))}
-            {wmode === "custom" ? (
-              <div className={an.consistent ? "cons ok" : "cons bad"} role="status">
-                <b>{an.consistent ? "Konsisten" : "Belum konsisten"}: CR = {f(an.cr, 3)}</b>
-                <span>λmax {f(an.lambdaMax, 3)}, CI {f(an.ci, 3)}, RI 1,32, batas CR {f(CR_LIMIT, 1)}</span>
-                {!an.consistent && (
-                  <span>
-                    Jawaban paling bertentangan: {crit[an.worst.i].name} vs {crit[an.worst.j].name}. Saran: {lbl(an.worst.suggest, crit[an.worst.i].name, crit[an.worst.j].name)}.{" "}
-                    <button className="lnk" onClick={() => setPair(an.worst.k, an.worst.suggest)}>Terapkan saran</button>
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="cons ok"><b>Bobot literatur: CR = {f(ahp.segments[seg].cr, 3)}</b><span>Sudah lolos uji konsistensi.</span></div>
-            )}
           </div>
+        )}
+
+        <div className="presets" style={{ marginTop: 14 }}>
+          <button className="solid" disabled={loading.active || alts.length === 0} onClick={handleRunStep}>
+            {alts.length === 0
+              ? "Isi minimal 1 alternatif di Langkah 1"
+              : useModel
+                ? "Prediksi Kelas & Hitung Peringkat"
+                : `Hitung Peringkat di ${manualSeg} Tanpa Prediksi`}
+          </button>
         </div>
+
+        {dirty && hasProcessed && (
+          <p className="warn" style={{ marginTop: 10 }}>
+            Ada perubahan pada data alternatif atau bobot kriteria. Klik tombol di atas untuk memperbarui hasil.
+          </p>
+        )}
       </section>
 
       <section className="step" id="hasil">
-        <h2><span>3</span>Hasil peringkat</h2>
-        <PriceMap phones={phones} marks={alts.map((a, i) => ({ price: a.input.price as number, label: LET[i] }))} segment={rows.length ? seg : null} top={topIds} />
-        <div className="presets" style={{ marginTop: 14 }}>
-          <span className="hint" style={{ margin: "6px 6px 0 0" }}>Segmen pembanding:</span>
-          <button aria-pressed={segMode === "auto"} onClick={() => setSegMode("auto")}>Otomatis ({seg})</button>
-          {SEGS.map((s) => <button key={s} aria-pressed={segMode === s} onClick={() => setSegMode(s)}>{s}</button>)}
-        </div>
-        {rows.length === 0 ? (
-          <p className="sentence">Tambahkan minimal satu alternatif di langkah 1.</p>
+        <h2><span>4</span>Hasil peringkat</h2>
+        <PriceMap
+          phones={phones}
+          marks={alts.map((a, i) => ({ price: a.input.price as number, label: LET[i] }))}
+          segment={rows.length ? activeSeg : null}
+          top={topIds}
+        />
+
+        {hasProcessed && processedWithModel && rows.length > 0 && (
+          <div className="presets" style={{ marginTop: 14 }}>
+            <span className="hint" style={{ margin: "6px 6px 0 0" }}>Segmen pembanding:</span>
+            <button aria-pressed={segOverride === "auto"} onClick={() => setSegOverride("auto")}>
+              Otomatis ({firstPredSeg ?? activeSeg})
+            </button>
+            {SEGS.map((s) => (
+              <button key={s} aria-pressed={segOverride === s} onClick={() => setSegOverride(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!hasProcessed || rows.length === 0 ? (
+          <p className="sentence" style={{ marginTop: 12 }}>
+            {alts.length === 0
+              ? "Tambahkan minimal satu alternatif di Langkah 1, atur bobot di Langkah 2, lalu jalankan proses di Langkah 3."
+              : "Klik tombol proses pada Langkah 3 untuk menjalankan prediksi dan menampilkan peringkat."}
+          </p>
         ) : (
           <div className="cols" style={{ marginTop: 10 }}>
             <div>
-              <p className="sentence">Dibandingkan dengan {rows.length - alts.length} ponsel di segmen <b style={{ boxShadow: `inset 0 -0.38em 0 ${COLOR[seg]}` }}>{seg}</b>.</p>
-              {wmode === "custom" && !an.consistent && <p className="warn">Bobotmu belum konsisten (CR {f(an.cr, 3)}). Peringkat tetap dihitung, tapi perbaiki matriks di langkah 2 dulu.</p>}
-              {mism.map(({ a, i }) => <p className="warn" key={a.uid}>{LET[i]} ({a.name}) ditebak model sebagai {preds[i].segment}, tetapi dibandingkan di pool {seg}.</p>)}
+              <p className="sentence">
+                Dibandingkan dengan {rows.length - alts.length} ponsel di segmen{" "}
+                <b style={{ boxShadow: `inset 0 -0.38em 0 ${COLOR[activeSeg]}` }}>{activeSeg}</b>
+                {processedWithModel ? " (hasil prediksi model)." : " (dipilih tanpa prediksi model)."}
+              </p>
+              {analysis && !analysis.consistent && (
+                <p className="warn">Bobotmu belum konsisten (CR {f(analysis.cr, 3)}). Peringkat tetap dihitung, tapi perbaiki matriks di langkah 2 dulu.</p>
+              )}
+              {mism.map(({ a, i, p }) => (
+                <p className="warn" key={a.uid}>
+                  {LET[i]} ({a.name}) ditebak model sebagai {p?.segment}, tetapi dibandingkan di pool {activeSeg}.
+                </p>
+              ))}
               <table className="tbl">
-                <thead><tr><th></th><th>Alternatif</th><th>Tebakan model</th><th>Urutan</th><th>V</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Alternatif</th>
+                    <th>{processedWithModel ? "Tebakan model" : "Mode kelas"}</th>
+                    <th>Urutan</th>
+                    <th>V</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {alts.map((a, i) => {
                     const r = rows.find((x) => x.uid === a.uid);
+                    const p = predMap[a.uid];
                     return (
                       <tr key={a.uid}>
                         <td><span className="badge">{LET[i]}</span></td>
                         <td><b>{a.name}</b></td>
-                        <td>{preds[i].segment} {pct(preds[i].probabilities[preds[i].segment])}{preds[i].ambiguous ? " (tipis)" : ""}</td>
+                        <td>
+                          {processedWithModel && p
+                            ? `${p.segment} ${pct(p.probabilities[p.segment])}${p.ambiguous ? " (tipis)" : ""}`
+                            : `Tanpa prediksi (${activeSeg})`}
+                        </td>
                         <td><b>{r?.rank}</b> dari {rows.length}</td>
                         <td>{f(r?.closeness ?? 0, 3)}</td>
                       </tr>
@@ -468,7 +730,7 @@ export default function Dashboard() {
               </table>
             </div>
             <div>
-              <h3>Peringkat di {seg}</h3>
+              <h3>Peringkat di {activeSeg}</h3>
               <ol className="rank">
                 {[...top, ...mine].map((r, i) => (
                   <li key={r.key} className={r.uid ? "rk me" : "rk"} style={r.uid && i >= top.length && i === top.length ? { marginTop: 14 } : undefined}>

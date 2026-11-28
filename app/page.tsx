@@ -10,7 +10,8 @@ export default function Home() {
         <a href="#mulai">Mulai</a>
         <a href="#alternatif">1 Alternatif</a>
         <a href="#bobot">2 Bobot</a>
-        <a href="#hasil">3 Hasil</a>
+        <a href="#prediksi">3 Prediksi</a>
+        <a href="#hasil">4 Hasil</a>
         <a href="#kuesioner">Kuesioner</a>
         <a href="#bukti">Bukti</a>
       </nav>
